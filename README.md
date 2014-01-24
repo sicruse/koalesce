@@ -1,6 +1,6 @@
 # Koalesce
 
-  The koalesce package is a router/middleware manager for the koa middleware framework.
+  The koalesce package is a router/middleware manager for the koa middleware framework. It includes built-in middleware to handle parsing of some of the basic request and response types. 
 
 ## Installation
 
@@ -34,3 +34,4 @@ $ npm install koalesce
 ## Controller Routes
 
   Koalesce uses koa-router(https://github.com/alexmingoia/koa-router) to handle its routes. 
+
