@@ -18,18 +18,21 @@ $ npm install koalesce
     bodyLimits: limits on the body sizes for each of the supported post types
     controllerPaths: a list of paths for the locations of controllers
     middleware:
-      The middleware configuration field is an array of (name, object) middleware tuples. They are used as middleware in order, any middleware can be used that returns a generator: function* (next).  
+      The middleware configuration field is an array of (name, object) middleware tuples. 
+      They are used as middleware in order, any middleware can be used that returns a generator: function* (next).  
 
 ## Example Directory Structure
 
   Below is the directory structure we've used for most of the projects that are using koalesce. The controller path(s) are configurable, and koalesce doesn't depend on any of the other paths.
 
+```
   /controllers - each file in the controllers directory is processed for routes
   /middleware - referenced from config.js 
   /models - mongoose models
   /static - static html pages
   /views - handlebars templates
   /tests - unit & functional tests
+```
 
 ## Controller Routes
 
