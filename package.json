@@ -1,31 +1,33 @@
 {
   "name": "koalesce",
-  "version": "0.0.3",
-  "description": "routing for koa",
+  "version": "0.0.4",
+  "description": "simple route and middleware manager for koa",
   "main": "koalesce.js",
   "repository": {
     "type": "git",
-    "url": "git://bitbucket.org/mradams5/koalesce.git"
+    "url": "git://github.com/mradams5/koalesce.git"
   },
   "keywords": [
     "koa",
     "routes",
-    "routing"
+    "routing",
+    "middleware"
   ],
   "author": {
     "name": "mradams5"
   },
   "license": "BSD",
-  "readme": "router for koa",
+  "readme": "route and middleware manager for koa",
   "readmeFilename": "README.md",
   "homepage": "",
   "_id": "koalesce@0.0.1",
   "dependencies": {
     "koa": "= 0.2.0",
-    "koa-route": ">= 1.0.2",
     "q": ">= 0.9.7",
     "underscore": ">= 1.5.2",
     "co-busboy": "~0.1.1",
-    "madams5-co-body": "0.0.2"
+    "madams5-co-body": "0.0.2",
+    "koa-router": "~2.4.0",
+    "koa-compose": "~2.2.0"
   }
 }
