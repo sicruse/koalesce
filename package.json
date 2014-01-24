@@ -1,6 +1,6 @@
 {
   "name": "koalesce",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "simple route and middleware manager for koa",
   "main": "koalesce.js",
   "repository": {
@@ -20,7 +20,7 @@
   "readme": "route and middleware manager for koa",
   "readmeFilename": "README.md",
   "homepage": "",
-  "_id": "koalesce@0.0.1",
+  "_id": "koalesce@0.0.7",
   "dependencies": {
     "koa": "= 0.2.0",
     "q": ">= 0.9.7",
