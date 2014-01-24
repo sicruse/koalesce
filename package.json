@@ -1,11 +1,11 @@
 {
   "name": "koalesce",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "simple route and middleware manager for koa",
   "main": "koalesce.js",
   "repository": {
     "type": "git",
-    "url": "git://github.com/mradams5/koalesce.git"
+    "url": "git://github.com/madams5/koalesce.git"
   },
   "keywords": [
     "koa",
