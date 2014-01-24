@@ -7,7 +7,7 @@ var compose = require('koa-compose');
 
 var __fs = require('fs');
 var fs = {
-	readdir: Q.nfbind(__fs.readdir)
+    readdir: Q.nfbind(__fs.readdir)
 };
 
 var koa = require('koa');
@@ -21,46 +21,64 @@ function assert (value, error) {
 }
 
 var responseTypes = {
-	'text' : function (context) {
-		context.response.type = 'text/plain';
-		var type = typeof context.response.body;
-		assert(
-			typeof context.response.body == 'string' ||
-			Buffer.isBuffer(context.response.body) ||
-			context.response.body instanceof Stream,
-			'Return type \'text\' must be a string, buffer, or stream.'
-		);
-	},
-	'html' : function (context) {
-		context.response.type = 'text/html';
-		assert(
-			typeof context.response.body == 'string' ||
-			Buffer.isBuffer(context.response.body) ||
-			true, //context.response.body instanceof Stream,
-			'Return type \'text\' must be a string, buffer, or stream.'
-		);
-	},
-	'json' : function (context) {
-		context.response.type = 'text/json';
-		assert(
-			typeof context.response.body == 'object',
-			'Return type \'json\' must be an object.'
-		);
-	},
-	'file' : function (context) {
-		if ( !context.response.type ) {
-			context.response.type = 'application/octet-stream';
-		}
-		assert(
- 			typeof context.response.body == 'string' ||
-			Buffer.isBuffer(context.response.body) ||
-			context.response.body instanceof Stream,
-			'Return type \'text\' must be a string, buffer, or stream.'
-		);
-	}
-};
+    'text': {
+        bindType: function (context) {
+            context.response.type = 'text/plain';
+        },
+        validate: function (context) {
+            var type = typeof context.response.body;
+            assert(
+                typeof context.response.body == 'string' ||
+                Buffer.isBuffer(context.response.body) ||
+                context.response.body instanceof Stream,
+                'Return type \'text\' must be a string, buffer, or stream.'
+            ); 
+        }   
+    },
+    'html': {
+        bindType: function (context) {
+            context.response.type = 'text/html';
+        },
+        validate: function (context) {
+            assert(
+                typeof context.response.body == 'string' ||
+                Buffer.isBuffer(context.response.body) ||
+                true, //context.response.body instanceof Stream,
+                'Return type \'text\' must be a string, buffer, or stream.'
+            ); 
+        }
+    },
+    'json': {
+        bindType: function (context) {
+            context.response.type = 'application/json';
+        },
+        validate: function (context) {
+            assert(
+                typeof context.response.body == 'object',
+                'Return type \'json\' must be an object.'
+            );
+        }
+    },
+    'file': {
+        bindType: function (context) {
+            if ( !context.response.type ) {
+                context.response.type = 'application/octet-stream';
+            }    
+        },
+        validate: function (context) {
+            assert(
+                typeof context.response.body == 'string' ||
+                Buffer.isBuffer(context.response.body) ||
+                context.response.body instanceof Stream,
+                'Return type \'text\' must be a string, buffer, or stream.'
+            );            
+        }
+    }
+}
 
 function loadMiddleware (middleware) {
+    var middlewareFunctions = [];
+
 	for ( var middlewareIndex in middleware ) {
 		var object = middleware[middlewareIndex];
 
@@ -77,12 +95,14 @@ function loadMiddleware (middleware) {
 		}
 
 		try {
-			app.use(object.object);
+            middlewareFunctions.push(object.object);
 		} catch (err) {
 			console.log('Koalesce: Error loading middleware \'' + object.name + '\'.');
 			console.log(err);
 		}
 	}
+
+    return middlewareFunctions;
 }
 
 function loadDependencies (basePath, list) {
@@ -112,11 +132,7 @@ function loadDependencies (basePath, list) {
 
 const CONTROLLER_DIRECTORY_NAME = 'controllers';
 
-function* loadControllers (basePath) {
-    app.use(router(app));
-
-	var controllers = [];
-
+function* loadControllers (basePath, globalMiddleware) {
 	var path = basePath + '/' + CONTROLLER_DIRECTORY_NAME;
 
     var files = yield fs.readdir(path);
@@ -143,7 +159,7 @@ function* loadControllers (basePath) {
 
         for ( var requestName in controller.requests ) {
         	var request = controller.requests[requestName];
-			processControllerPath(file, controller, requestName, request);
+			processControllerPath(globalMiddleware, file, controller, requestName, request);
         }
     }
 }
@@ -156,7 +172,7 @@ function* loadControllers (basePath) {
 //   array injectors (optional)
 //   function* handler
 // }
-function processControllerPath (file, controller, requestName, request) {
+function processControllerPath (globalMiddleware, file, controller, requestName, request) {
 	if ( !request.url ) {
 		console.log('Koalesce: Controller \'' + file + '\' is missing a url for a path in \'' + requestName + '\'.');
 		return;
@@ -182,17 +198,21 @@ function processControllerPath (file, controller, requestName, request) {
 
 	console.log('-- Creating route', request.requestType, request.url, '\tresponseType:', request.responseType);
 
-    var middlewareStack = [];
+    var callStack = [function* (next) {
+        responseTypes[request.responseType].bindType(this);
+        yield next;
+    }];
+    callStack = callStack.concat(globalMiddleware);
 
     // compose all middleware for routes
     if ( controller.middleware ) {
-        middlewareStack = middlewareStack.concat(
+        callStack = callStack.concat(
             _.map(controller.middleware, function (middleware) {
                 return middleware.object;
             })
         );
         if ( request.middleware ) {
-            middlewareStack = middlewareStack.concat(
+            callStack = callStack.concat(
                 _.map(request.middleware, function (middleware) {
                     return middleware.object;
                 })
@@ -200,13 +220,13 @@ function processControllerPath (file, controller, requestName, request) {
         }
     }
 
-    request.callStack = compose(middlewareStack);
-
-    app[request.requestType.toLowerCase()](request.url, function* (next) {
-        yield request.callStack.call(this);
-        yield request.handler.call(this);
-        responseTypes[request.responseType](this);
+    callStack.push(function* (next) {
+        yield next;
+        responseTypes[request.responseType].verify(this);
     });
+    callStack.push(request.handler);
+
+    app[request.requestType.toLowerCase()](request.url, compose(callStack));
 }
 
 function createEndpoints (endpoints) {
@@ -243,7 +263,7 @@ function loadBodyParser (limits) {
 		file: '1mb',
 	});
 
-	app.use(function* (next) {
+	return function* (next) {
 		var contentType = this.request.header['content-type'];
 
 		var opts = {
@@ -278,7 +298,7 @@ function loadBodyParser (limits) {
 		}
 
 		yield next;
-	});
+	};
 }
 
 function* initialize (config) {
@@ -290,13 +310,16 @@ function* initialize (config) {
 	});
 
 	console.log('Loading middleware');
-	loadMiddleware(config.middleware);
+	var middlewareFunctions = loadMiddleware(config.middleware);
 
 	console.log('Loading body parser');
-	loadBodyParser(config.limits);
+	middlewareFunctions.push(loadBodyParser(config.limits));
 
-	console.log('Loading controllers');
-	yield Q.async(loadControllers)(config.basePath);
+    console.log('Creating router');
+    app.use(router(app));
+
+	console.log('Binding controllers');
+	yield Q.async(loadControllers)(config.basePath, middlewareFunctions);
 
 	console.log('Creating endpoints');
 	createEndpoints(config.endpoints);;

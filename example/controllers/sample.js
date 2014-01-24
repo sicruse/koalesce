@@ -55,6 +55,7 @@ module.exports = {
             requestType: 'PUT',
             responseType: 'json',
             handler: function* () {
+                throw new Exception(500, 'Internal Server Error Message');
                 console.log('update', this.params.id, this.request.body);
                 this.body = {};
             }
@@ -62,8 +63,9 @@ module.exports = {
     	delete: {
     	    url: '/sample/:id', 
             requestType: 'DELETE',
-            responseType: 'json',
+            responseType: 'html',
             handler: function* () {
+                throw new Exception(500, 'Internal Server Error Message');
                 console.log('delete', this.id);
                 this.body = {};
             }

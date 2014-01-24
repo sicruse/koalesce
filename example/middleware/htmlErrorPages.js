@@ -1,39 +1,53 @@
+var Q = require('q');
+var _ = require('underscore');
 
-module.exports = new HtmlErrorPages();
+var __fs = require('fs');
+var fs = {
+	readFile: Q.nfbind(__fs.readFile)
+};
 
-function HtmlErrorPages() {
-	if ( !(this instanceof HtmlErrorPages) ) {
-		return new HtmlErrorPages();
-	}
+module.exports = (function () {
+    var path404Html;
+    var path500Html;
+    var path500Text;
 
-	// instance variables here
-}
-
-function configure (options) {
-	this.path404Html = '/static/404.html',
-	this.path500Html = '/static/500.html'
-	this.path500Text = '/static/500.txt'
-}
-
-function handleError (context, error) {
-	if ( this.response.type == 'application/json' ) {
-		this.response.status = 500;
-		this.response.body = { Error: error };
-	} else if ( this.response.type == 'text/html' ) {
-		this.response.body = fs.readFile(this.path500Html);
-	} else if ( this.response.type == 'text/plain' ) {
-		this.response.body = fs.readFile(this.path500Text);
-	}
-}
-
-HtmlErrorPages.prototype.middleware = function(options) {
-	configure(options);
-
-	return function* (next) {
+	function* middleware (next) {
 		try {
 			yield next;
 		} catch ( error ) {
-			handleError(this, error);
+			console.log('error', error);
+
+			if ( this.response.type === 'application/json' ) {
+				this.response.status = error.status ? error.status : 500;
+				this.response.body = { error: error.toString(), trace: error.stack };
+			} else if ( this.response.type === 'text/html' ) {
+				this.response.body = yield fs.readFile('./static/500.html');
+			} else if ( this.response.type === 'text/plain' ) {
+				this.response.body = yield fs.readFile(this.path500Text);
+			}
 		}
 	}
-}
+
+    return {
+		configure: function (options) {
+			if ( !options ) {
+				options = {};
+			}
+			
+	    	_.defaults(options, { 
+	            path404Html: 'static/404.html',
+	            path500Html: 'static/500.html',
+	            path500Text: 'static/500.txt' 
+	    	});
+
+	    	path404Html = options.path404Html;
+	    	path500Html = options.path500Html;
+	    	path500Text = options.path500Text;
+	    },
+	    middleware: function (options) {
+	    	this.configure(options);
+			return middleware;
+	    }
+	};
+}).call(this);
+
