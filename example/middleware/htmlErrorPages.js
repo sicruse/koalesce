@@ -10,7 +10,7 @@ module.exports = (function () {
     var options = {};
 
     function* middleware (next) {
-        if ( this.route.responseType == 'html' ) {
+        if ( this.route.responseContentType == 'html' ) {
             try {
                 yield next;
 

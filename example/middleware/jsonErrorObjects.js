@@ -5,7 +5,7 @@ module.exports = (function () {
     var options = {};
 
     function* middleware (next) {
-        if ( this.route.responseType === 'json' ) {
+        if ( this.route.responseContentType === 'json' ) {
             try {
                 yield next;
             } catch ( error ) {
