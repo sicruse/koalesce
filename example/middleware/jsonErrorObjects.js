@@ -1,26 +1,20 @@
 var Q = require('q');
 var _ = require('underscore');
 
-var __fs = require('fs');
-var fs = {
-    readFile: Q.nfbind(__fs.readFile)
-};
-
 module.exports = (function () {
     var options = {};
 
     function* middleware (next) {
-        if ( this.route.responseType == 'html' ) {
+        if ( this.route.responseType === 'json' ) {
             try {
                 yield next;
-
-                if ( options[this.response.status] ) {
-                    var filename = options[this.response.status];
-                    this.response.body = yield fs.readFile(filename);   
-                }
             } catch ( error ) {
                 this.response.status = error.status ? error.status : 500;
-                renderErrorStatus.call(this, error);
+                this.response.body = { 
+                    error: error.toString, 
+                    trace: error.stack,
+                    originalBody: this.response.body
+                };
                 if ( options.rethrow ) {
                     throw error;
                 }
@@ -40,7 +34,7 @@ module.exports = (function () {
                 'rethrow': true
             });
 
-            options = newOptions;
+            options = newOptions;   
         },
         middleware: function (options) {
             this.configure(options);

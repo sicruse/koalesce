@@ -10,23 +10,15 @@ module.exports = (function () {
     var options = {};
 
     function* middleware (next) {
-        if ( this.route.responseType == 'html' ) {
-            try {
-                yield next;
-
-                if ( options[this.response.status] ) {
-                    var filename = options[this.response.status];
-                    this.response.body = yield fs.readFile(filename);   
-                }
-            } catch ( error ) {
-                this.response.status = error.status ? error.status : 500;
-                renderErrorStatus.call(this, error);
-                if ( options.rethrow ) {
-                    throw error;
-                }
-            }
-        } else {
+        try {
             yield next;
+        } catch ( error ) {
+            // submit tracking data to tracker
+            console.log('error', error);
+
+            if ( options.rethrow ) {
+                throw error;
+            }
         }
     }
 
