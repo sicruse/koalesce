@@ -14,7 +14,7 @@
 
 ## Features
 
-  Built-in:
+### Built-in:
 
   - controller level routing using koa-router(https://github.com/alexmingoia/koa-router)for route matching
   - parsing requests with Content-Type 'appliction/json' and placing the resulting object in this.request.body
@@ -22,13 +22,13 @@
   - dependency injection for simple unit tests
   - response validation: making sure the response body matches the route response type
 
-  Potential Middleware: (included in example)
+### Potential Middleware: (included in example)
 
   - error tracking using m-error-tracking(https://github.com/madams5/m-error-tracking)
   - html error pages by response status using m-html-error-pages(https://github.com/madams5/m-html-error-pages)
   - json error objects using m-json-error-objects(https://github.com/madams5/m-json-error-objects)
   - handlebars templating using koa-hbs(https://github.com/jwilm/koa-hbs/)
-  - logging ...
+  - logging
   - route argument validation using joi(https://github.com/spumko/joi)
 
 
