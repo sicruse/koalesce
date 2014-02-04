@@ -28,10 +28,20 @@
     "co-busboy": "~0.1.1",
     "madams5-co-body": "0.0.2",
     "koa-router": "~2.4.0",
-    "koa-compose": "~2.2.0"
+    "koa-compose": "~2.2.0",
+    "underscore.string": "~2.3.3"
   },
   "devDependencies": {
     "koa-hbs": "~0.4.1",
-    "joi": "~2.3.1"
+    "joi": "~2.3.1",
+    "winston": "~0.7.2",
+    "node-statsd": "0.0.7",
+    "grunt": "~0.4.2",
+    "grunt-shell": "~0.6.4",
+    "grunt-cafe-mocha": "~0.1.10",
+    "grunt-contrib-jshint": "~0.8.0",
+    "grunt-concurrent": "~0.4.3",
+    "grunt-node-inspector": "~0.1.2",
+    "mongoose": "~3.8.5"
   }
 }

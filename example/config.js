@@ -1,3 +1,5 @@
+var winston = require('winston');
+
 module.exports = {
     basePath: __dirname,
     controllerPaths: ['controllers'],
@@ -8,6 +10,15 @@ module.exports = {
         file: '5mb'
     },
     middleware: [
+        {
+            name: 'winston-logging',
+            object: require('./middleware/winstonLogger').middleware({
+                transports: [
+                    new (winston.transports.Console)(),
+                    //new (winston.transports.File)({ filename: 'dev.log' })
+                ]
+            })
+        },
         {
             name: 'error-tracking',
             object: require('./middleware/errorTracking').middleware({

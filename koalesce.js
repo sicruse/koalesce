@@ -1,5 +1,7 @@
 var _ = require('underscore');
+var _s = require('underscore.string');
 var Q = require('q');
+var Joi = require('joi');
 
 var co_body = require('madams5-co-body');
 var co_busboy = require('co-busboy');
@@ -158,7 +160,7 @@ function* loadControllers (basePath, controllerPaths, globalMiddleware) {
 
             for ( var routeName in controller.routes ) {
                 var route = controller.routes[routeName];
-                processControllerPath(globalMiddleware, file, controller, routeName, route);
+                processControllerPath(globalMiddleware, file, controller, dependencies, routeName, route);
             }
         }
     }
@@ -173,7 +175,7 @@ function* loadControllers (basePath, controllerPaths, globalMiddleware) {
 //   array injectors (optional)
 //   function* handler
 // }
-function processControllerPath (globalMiddleware, file, controller, routeName, route) {
+function processControllerPath (globalMiddleware, file, controller, dependencies, routeName, route) {
     if ( !route.url ) {
         console.log('Koalesce: Controller \'' + file + '\' is missing a url for a path in \'' + routeName + '\'.');
         return;
@@ -224,8 +226,11 @@ function processControllerPath (globalMiddleware, file, controller, routeName, r
     }
 
     callStack.push(function* (next) {
+        for ( var dependencyName in dependencies ) {
+            var dependency = dependencies[dependencyName];
+            this[dependencyName] = dependency;
+        }
         yield next;
-        //responseContentTypes[route.responseContentType].verify(this);
     });
     callStack.push(route.handler);
 
@@ -305,18 +310,11 @@ function loadBodyParser (limits) {
 }
 
 function* initialize (config) {
-    _.defaults(config, { 
-        basePath: '.',
-        limits: {},
-        middleware: [],
-        endpoints: [ { port: 4000, type: 'http' } ]
-    });
-
     console.log('Loading middleware');
     var middlewareFunctions = loadMiddleware(config.middleware);
 
     console.log('Loading body parser');
-    middlewareFunctions.push(loadBodyParser(config.limits));
+    middlewareFunctions.push(loadBodyParser(config.bodyLimits));
 
     console.log('Creating router');
     app.use(router(app));
@@ -331,7 +329,102 @@ function* initialize (config) {
     // views
 };
 
+function validateConfiguration(config) {
+    _.defaults(config, { 
+        basePath: __dirname,
+        controllerPaths: ['controllers'],
+        bodyLimits: {
+            json: '1mb',
+            form: '1mb',
+            text: '1mb',
+            file: '5mb'
+        },
+        middleware: [],
+        endpoints: [ { port: 4000, type: 'http' } ]
+    });
+
+    var errors = [];
+
+    if ( typeof config.basePath !== 'string' ) {
+        errors.push("Configuration setting 'basePath' must be a string.");
+    }
+
+    var basePathStats = __fs.statSync(config.basePath); // Sync is okay, we're just initializing
+    if ( !basePathStats.isDirectory() ) {
+        errors.push("Configuration setting 'basePath' must be a valid directory.");
+    }
+
+    if ( !Array.isArray(config.controllerPaths) ) {
+        errors.push("Configuration setting 'controllerPaths' must be an array.");
+    }
+
+    for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
+        var controllerPath = config.controllerPaths[i];
+        var controllerPathStats = __fs.statSync(controllerPath);
+        if ( !controllerPathStats.isDirectory() ) {
+            errors.push("Configuration setting 'controllerPaths' contains path '" + controllerPath + "' that does not exist.");
+        }
+    }
+
+    if ( typeof bodyLimits !== 'object' ) {
+        errors.push("Configuration setting 'bodyLimits' must be a hash.");
+    }
+
+    var bodyLimitsKeys = ['json', 'form', 'text', 'file'];
+
+    for ( var i = 0 ; i < bodyLimitsKeys.length ; i++ ) {
+        var bodyLimitsKey = bodyLimitsKeys[i];
+        if ( !bodyLimitsKeys.hasOwnProperty(bodyLimitsKey) ) {
+            errors.push("Configuration setting 'bodyLimits' is missing key '" + bodyLimitsKey + "'.");
+        }
+    }
+
+    if ( !Array.isArray(config.middleware) ) {
+        errors.push("Configuration setting 'middleware' must be an array.");
+    }
+
+    for ( var i = 0 ; i < config.middleware.length ; i++ ) {
+        var middlewareDescriptor = config.middleware[i];
+
+        if ( !middlewareDescriptor.hasOwnProperty('name') ) {
+            errors.push("Configuration setting 'middleware' contains a hash missing the 'name' field.");
+        }
+
+        if ( !middlewareDescriptor.hasOwnProperty('object') ) {
+            errors.push("Configuration setting 'middleware' contains a hash missing the 'object' field.");
+        }
+
+        if ( typeof middlewareDescriptor.object !== 'function' ) {
+            errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a function.");
+        } else {
+            if ( !_s.startsWith(middlewareDescriptor.object.toString(), 'function*') ) {
+                errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a generator function.");
+            }
+        }
+    }
+
+    if ( !Array.isArray(config.endpoints) ) {
+        errors.push("Configuration setting 'endpoints' must be an array.");
+    }
+
+    for ( var i = 0 ; i < config.endpoints.length ; i++ )
+    {
+        if ( !typeof config.endpoints === 'object' ) {
+            errors.push("Configuration setting 'endpoints' must contain only object types.");
+        } else {
+            if ( !config.endpoints.port ) {
+                errors.push("Configuration setting 'endpoints' entry must be an object that has a port field.");
+            }
+            if ( !config.endpoints.type ) {
+                errors.push("Configuration setting 'endpoints' entry must be an object that has a type field of 'http' or 'https'.");
+            }            
+        }
+    }
+}
+
 var koalesce = function (config) {
+    validateConfiguration(config);
+
     Q.async(initialize)(config).fail(function (err) {
         console.log('Error Initializing Koalesce');
         console.log(err);

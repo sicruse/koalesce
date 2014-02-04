@@ -3,15 +3,19 @@ var Exception = require('../helpers/exception');
 
 module.exports = {
 
+    dependencies : {
+        UserData: 'services/UserData'
+    },
+
     // runs in order before any route on this controller
     middleware : [
         {
-            name: 'testMid1',
+            name: 'controllerMiddleware',
             object: function* (next) {
-                console.log('controller1 start');
+                console.log('controllerMiddleware start');
                 this.test1 = 1234;
                 yield next;
-                console.log('controller1 end');
+                console.log('controllerMiddleware end');
             }
         }
     ],
@@ -24,24 +28,25 @@ module.exports = {
             responseContentType: 'html',
             middleware: [ // [optional] runs in order before this specific route
                 { 
-                    name: 'route1', 
+                    name: 'route1Middleware', 
                     object: function* (next) {
-                        console.log('route1 start');
+                        console.log('route1Middleware start');
                         yield next;
-                        console.log('route1 end');
+                        console.log('route1Middleware end');
                     }
                 },
                 {
-                    name: 'route2',
+                    name: 'route2Middleware',
                     object: function* (next) {
-                        console.log('route2 start');
+                        console.log('route2Middleware start');
                         yield next;
-                        console.log('route2 end');
+                        console.log('route2Middleware end');
                     }
                 }
             ], 
             handler: function* () {
-                console.log('create', this.test1);
+                this.UserData.test();
+                this.logger.info('create', this.test1);
                 yield this.render('main', { title: "testing" });
             }
         },
@@ -60,8 +65,8 @@ module.exports = {
             responseContentType: 'json',
             handler: function* () {
                 throw new Exception(500, 'Internal Server Error Message');
-                console.log('update', this.params.id, this.request.body);
-                this.body = {};
+                //console.log('update', this.params.id, this.request.body);
+                //this.body = {};
             }
         },
         delete: {
@@ -70,7 +75,7 @@ module.exports = {
             responseContentType: 'html',
             middleware: [
                 {
-                    name: 'validate argument',
+                    name: 'validateArgument',
                     object: require('../middleware/validateArgument').middleware({
                         username: Joi.string().alphanum().min(3).max(30).required(),
                         password: Joi.string().regex(/[a-zA-Z0-9]{3,30}/),
@@ -80,10 +85,10 @@ module.exports = {
                 }
             ],
             handler: function* () {
-                throw new Exception(500, 'Internal Server Error Message');
                 console.log('delete', this.id);
                 this.body = {};
+                throw new Exception(500, 'Internal Server Error Message');
             }
         }
     }
-}
+};

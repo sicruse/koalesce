@@ -1,10 +1,4 @@
-var Q = require('q');
 var _ = require('underscore');
-
-var __fs = require('fs');
-var fs = {
-    readFile: Q.nfbind(__fs.readFile)
-};
 
 module.exports = (function () {
     var options = {};

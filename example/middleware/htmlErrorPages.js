@@ -9,18 +9,22 @@ var fs = {
 module.exports = (function () {
     var options = {};
 
+    function* renderResponse () {
+        if ( options[this.response.status] ) {
+            var filename = options[this.response.status];
+            this.response.body = yield fs.readFile(filename);   
+        }
+    }
+
     function* middleware (next) {
-        if ( this.route.responseType == 'html' ) {
+        if ( this.route.responseType === 'html' ) {
             try {
                 yield next;
-
-                if ( options[this.response.status] ) {
-                    var filename = options[this.response.status];
-                    this.response.body = yield fs.readFile(filename);   
-                }
+                yield renderResponse.call(this);
             } catch ( error ) {
                 this.response.status = error.status ? error.status : 500;
-                renderErrorStatus.call(this, error);
+                yield renderResponse.call(this); // issue jshint #1423
+
                 if ( options.rethrow ) {
                     throw error;
                 }
