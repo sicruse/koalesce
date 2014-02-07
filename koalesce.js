@@ -100,8 +100,12 @@ function loadMiddleware (middleware) {
 
         try {
             if ( Array.isArray(object.object) ) {
-                middlewareFunctions = middlewareFunctions.concat(object.object);
+                for ( var i = 0 ; i < object.object.length ; i++ ) {
+                    app.use(object.object[i]);
+                    middlewareFunctions = middlewareFunctions.concat(object.object);
+                }
             } else { // it's a generator function
+                app.use(object.object);
                 middlewareFunctions.push(object.object);
             }
         } catch (err) {
@@ -110,7 +114,8 @@ function loadMiddleware (middleware) {
         }
     }
 
-    return middlewareFunctions;
+    return [];
+    //return middlewareFunctions;
 }
 
 function loadDependencies (basePath, list) {
@@ -285,30 +290,32 @@ function loadBodyParser (limits) {
             length: this.request.header['content-length']
         }
 
-        if ( contentType == 'application/json' ) {
-            opts.limit = limits.json;
-            this.request.body = yield co_body.json(this, opts);
-        } else if ( contentType == 'application/x-www-form-urlencoded' ) {
-            opts.limit = limits.form;
-            this.request.body = yield co_body.form(this, opts);
-        } else if ( contentType == 'text/plain' ) {
-            opts.limit = limits.text;
-            this.request.body = yield co_body.text(this, opts);
-        } else if ( contentType == 'form/multipart' ) {
-            var parts = co_busboy(this);
-            this.request.body = {};
-            this.request.body.fields = parts.fields;
-            this.request.body.files = [];
+        if ( this.request.method !== 'GET' ) { 
+            if ( contentType == 'application/json' ) {
+                opts.limit = limits.json;
+                this.request.body = yield co_body.json(this, opts);
+            } else if ( contentType == 'application/x-www-form-urlencoded' ) {
+                opts.limit = limits.form;
+                this.request.body = yield co_body.form(this, opts);
+            } else if ( contentType == 'text/plain' ) {
+                opts.limit = limits.text;
+                this.request.body = yield co_body.text(this, opts);
+            } else if ( contentType == 'form/multipart' ) {
+                var parts = co_busboy(this);
+                this.request.body = {};
+                this.request.body.fields = parts.fields;
+                this.request.body.files = [];
 
-            var part;
-            while ( part = yield parts ) {
-                this.request.body.files.push(part);
+                var part;
+                while ( part = yield parts ) {
+                    this.request.body.files.push(part);
+                }
+            } else {
+                console.log('Koalesce: Invalid content type \'' + contentType + '\'.');
+                this.status = 415;
+                this.body = 'Unsupported or missing content-type';
+                return;
             }
-        } else {
-            console.log('Koalesce: Invalid content type \'' + contentType + '\'.');
-            this.status = 415;
-            this.body = 'Unsupported or missing content-type';
-            return;
         }
 
         yield next;

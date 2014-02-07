@@ -17,7 +17,7 @@ module.exports = (function () {
     }
 
     function* middleware (next) {
-        if ( this.route.responseType === 'html' ) {
+        if ( this.route && this.route.responseType === 'html' ) {
             try {
                 yield next;
                 yield renderResponse.call(this);
