@@ -96,8 +96,14 @@ function loadMiddleware (middleware) {
             continue;
         }
 
+        // check if it's a generator function or array of generator functions
+
         try {
-            middlewareFunctions.push(object.object);
+            if ( Array.isArray(object.object) ) {
+                middlewareFunctions = middlewareFunctions.concat(object.object);
+            } else { // it's a generator function
+                middlewareFunctions.push(object.object);
+            }
         } catch (err) {
             console.log('Koalesce: Error loading middleware \'' + object.name + '\'.');
             console.log(err);

@@ -42,6 +42,7 @@
     "grunt-contrib-jshint": "~0.8.0",
     "grunt-concurrent": "~0.4.3",
     "grunt-node-inspector": "~0.1.2",
-    "mongoose": "~3.8.5"
+    "mongoose": "~3.8.5",
+    "grunt-nodemon": "~0.2.0"
   }
 }
