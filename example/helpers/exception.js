@@ -8,6 +8,7 @@ module.exports = function test(status, message) {
     return {
         status: status,
         message: message,
-        extra: args
+        extra: args,
+        trace: new Error().stack
     };
 };

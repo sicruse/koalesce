@@ -1,11 +1,10 @@
-var Q = require('q');
 var _ = require('underscore');
 
 module.exports = (function () {
     var options = {};
 
     function* middleware (next) {
-        if ( this.route.responseContentType === 'json' ) {
+        if ( this.route && this.route.responseType === 'json' ) {
             try {
                 yield next;
             } catch ( error ) {
