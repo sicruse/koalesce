@@ -8,7 +8,7 @@ module.exports = (function () {
             yield next;
         } catch ( error ) {
             // submit tracking data to tracker
-            console.log('error', error);
+            console.log('error', error, error.stack);
 
             if ( options.rethrow ) {
                 throw error;

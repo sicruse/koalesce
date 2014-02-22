@@ -25,18 +25,15 @@
     "koa": ">= 0.3.0",
     "q": ">= 0.9.7",
     "underscore": ">= 1.5.2",
-    "co-busboy": "~0.1.1",
+    "co-busboy": "~1.0.0",
     "madams5-co-body": "0.0.2",
-    "koa-router": "~2.4.0",
+    "koa-router": "~3.0.2",
     "koa-compose": "~2.2.0",
     "underscore.string": "~2.3.3",
-    "winston": "~0.7.2",
-    "node-statsd": "0.0.7",
-    "mongoose": "~3.8.6"
+    "joi": "~2.7.0"
   },
   "devDependencies": {
     "koa-hbs": "~0.4.1",
-    "joi": "~2.3.1",
     "winston": "~0.7.2",
     "node-statsd": "0.0.7",
     "grunt": "~0.4.2",
@@ -46,6 +43,7 @@
     "grunt-concurrent": "~0.4.3",
     "grunt-node-inspector": "~0.1.2",
     "mongoose": "~3.8.5",
-    "grunt-nodemon": "~0.2.0"
+    "grunt-nodemon": "~0.2.0",
+    "chai": "~1.9.0"
   }
 }

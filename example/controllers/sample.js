@@ -4,7 +4,7 @@ var Exception = require('../helpers/exception');
 module.exports = {
 
     dependencies : {
-        UserData: 'services/UserData'
+        Users: 'models/users'
     },
 
     // runs in order before any route on this controller
@@ -45,7 +45,6 @@ module.exports = {
                 }
             ], 
             handler: function* () {
-                this.UserData.test();
                 this.logger.info('create', this.test1);
                 yield this.render('main', { title: "testing" });
             }
@@ -55,6 +54,7 @@ module.exports = {
             action: 'GET',
             responseContentType: 'json',
             handler: function* () {
+                console.log('users', this.Users);
                 console.log('retrieve', this.params.id);
                 this.body = {};
             }

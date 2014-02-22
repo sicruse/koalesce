@@ -1,6 +1,8 @@
 var winston = require('winston');
 
-module.exports = {
+var environment = 'test';
+
+var config = {
     basePath: __dirname,
     controllerPaths: ['controllers'],
     bodyLimits: {
@@ -49,5 +51,20 @@ module.exports = {
     endpoints: [
         { port: 4002, type: 'http' },
         //{ port: 4001, type: 'https' }
-    ]
+    ],
+    mongoose: {
+        uri: 'mongodb://localhost/example'
+    }
 };
+
+if ( environment == 'dev' ) {
+
+} else if ( environment == 'test' ) {
+    config.mongoose.uri = 'mongodb://localhost/example_test'
+} else if ( environment == 'staging' ) {
+
+} else if ( environment == 'production' ) {
+
+}
+
+module.exports = config;

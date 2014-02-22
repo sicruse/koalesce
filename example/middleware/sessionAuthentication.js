@@ -29,9 +29,8 @@ module.exports = (function () {
             options = newOptions;
         },
         middleware: function (options) {
-            var session = require('koa-session');
+            //var session = require('koa-session');
             
-
             this.configure(options);
             return middleware;
         }

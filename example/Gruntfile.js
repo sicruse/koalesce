@@ -59,7 +59,7 @@ module.exports = function (grunt) {
             "afterEach": false
           }
         },
-        src: ['test/**/*.js']
+        src: ['tests/**/*.js']
       },
     },
 
@@ -87,14 +87,14 @@ module.exports = function (grunt) {
       },
 
       startApp: {
-        command: 'node ./app.js',
+        command: 'node --harmony ./app.js',
         options: {
           stdout: true
         }
       },
 
       debugApp: {
-        command: 'node --debug ./app.js',
+        command: 'node --harmony --debug ./app.js',
         options: {
           stdout: true
         }
@@ -122,10 +122,19 @@ module.exports = function (grunt) {
           logConcurrentOutput: true
         }
       }
+    },
+
+    nodemon: {
+      dev: {
+        script: 'app.js',
+        options: { 
+          nodeArgs: ['--harmony']
+        }
+      }
     }
   });
 
-  grunt.registerTask("default", ['jshint']);
+  grunt.registerTask("default", ['shell:startApp']);
 
   // Output JSHint data in checkstyle format
   grunt.registerTask("jshint:checkstyle", function () {
