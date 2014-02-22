@@ -442,6 +442,8 @@ var koalesce = function (config) {
         console.log('Error Initializing Koalesce');
         console.log(err);
     });
+
+    return app;
 };
 
 module.exports = koalesce;

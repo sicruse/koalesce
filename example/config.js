@@ -46,6 +46,18 @@ var config = {
             object: require('koa-hbs').middleware({ 
                 viewPath: __dirname + '/views/'
             })
+        },
+        {
+            name: 'sessions',
+            object: require('koa-sess')()
+        },
+        {
+            name: 'passport-initialization',
+            object: require('koa-passport').initialize()
+        },
+        {
+            name: 'passport-session',
+            object: require('koa-passport').session()
         }
     ],
     endpoints: [
