@@ -79,8 +79,6 @@ var responseContentTypes = {
 }
 
 function loadMiddleware (middleware) {
-    var middlewareFunctions = [];
-
     for ( var middlewareIndex in middleware ) {
         var object = middleware[middlewareIndex];
 
@@ -102,20 +100,15 @@ function loadMiddleware (middleware) {
             if ( Array.isArray(object.object) ) {
                 for ( var i = 0 ; i < object.object.length ; i++ ) {
                     app.use(object.object[i]);
-                    middlewareFunctions = middlewareFunctions.concat(object.object);
                 }
             } else { // it's a generator function
                 app.use(object.object);
-                middlewareFunctions.push(object.object);
             }
         } catch (err) {
             console.log('Koalesce: Error loading middleware \'' + object.name + '\'.');
             console.log(err);
         }
     }
-
-    return [];
-    //return middlewareFunctions;
 }
 
 function loadDependencies (basePath, list) {
@@ -143,7 +136,7 @@ function loadDependencies (basePath, list) {
     return dependencies;
 }
 
-function* loadControllers (basePath, controllerPaths, globalMiddleware) {
+function* loadControllers (basePath, controllerPaths) {
     for ( var i = 0 ; i < controllerPaths.length ; i++ ) {
         var path = basePath + '/' + controllerPaths[i];
 
@@ -171,7 +164,7 @@ function* loadControllers (basePath, controllerPaths, globalMiddleware) {
 
             for ( var routeName in controller.routes ) {
                 var route = controller.routes[routeName];
-                processControllerPath(globalMiddleware, file, controller, dependencies, routeName, route);
+                processControllerPath(file, controller, dependencies, routeName, route);
             }
         }
     }
@@ -186,7 +179,7 @@ function* loadControllers (basePath, controllerPaths, globalMiddleware) {
 //   array injectors (optional)
 //   function* handler
 // }
-function processControllerPath (globalMiddleware, file, controller, dependencies, routeName, route) {
+function processControllerPath (file, controller, dependencies, routeName, route) {
     if ( !route.url ) {
         console.log('Koalesce: Controller \'' + file + '\' is missing a url for a path in \'' + routeName + '\'.');
         return;
@@ -218,7 +211,6 @@ function processControllerPath (globalMiddleware, file, controller, dependencies
         yield next;
         responseContentTypes[route.responseContentType].validate(this);
     }];
-    callStack = callStack.concat(globalMiddleware);
 
     // compose all middleware for routes
     if ( controller.middleware ) {
@@ -282,7 +274,7 @@ function loadBodyParser (limits) {
         file: '1mb',
     });
 
-    return function* (next) {
+    app.use(function* (next) {
         var contentType = this.request.header['content-type'];
 
         var opts = {
@@ -319,21 +311,21 @@ function loadBodyParser (limits) {
         }
 
         yield next;
-    };
+    });
 }
 
 function* initialize (config) {
     console.log('Loading middleware');
-    var middlewareFunctions = loadMiddleware(config.middleware);
+    loadMiddleware(config.middleware);
 
     console.log('Loading body parser');
-    middlewareFunctions.push(loadBodyParser(config.bodyLimits));
+    loadBodyParser(config.bodyLimits);
 
     console.log('Creating router');
     app.use(router(app));
 
     console.log('Binding controllers');
-    yield Q.async(loadControllers)(config.basePath, config.controllerPaths, middlewareFunctions);
+    yield* loadControllers(config.basePath, config.controllerPaths);
 
     console.log('Creating endpoints');
     createEndpoints(config.endpoints);;

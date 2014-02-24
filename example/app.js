@@ -1,12 +1,18 @@
-var koalesce = require('..');
-var config = require('./config.js');
+var Q = require('q');
 
-var db = require('./db');
-db.initialize(config.mongoose.uri);
+Q.spawn(startApp);
+
+function* startApp () {
+	var koalesce = require('..');
+	var config = require('./config.js');
+
+	var db = require('./db');
+	yield db.initialize(config.mongoose.uri);
+
+	var app = koalesce(config);
+	app.keys = ['my-session-secret'];	
+}
 
 process.on('uncaughtException', function (err) {
 	console.log('error', err, err.stack);
 });
-
-var app = koalesce(config);
-app.keys = ['my-session-secret'];

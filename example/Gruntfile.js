@@ -92,13 +92,6 @@ module.exports = function (grunt) {
           stdout: true
         }
       },
-
-      debugApp: {
-        command: 'node --harmony --debug ./app.js',
-        options: {
-          stdout: true
-        }
-      }
     },
 
     // node-inspector configuration
@@ -117,7 +110,7 @@ module.exports = function (grunt) {
     // Module to run two grunt tasks at the same time
     concurrent: {
       debugger: {
-        tasks: ['shell:debugApp', 'node-inspector'],
+        tasks: ['nodemon', 'node-inspector'],
         options: {
           logConcurrentOutput: true
         }
@@ -128,7 +121,7 @@ module.exports = function (grunt) {
       dev: {
         script: 'app.js',
         options: { 
-          nodeArgs: ['--harmony']
+          nodeArgs: ['--harmony', '--debug']
         }
       }
     }
