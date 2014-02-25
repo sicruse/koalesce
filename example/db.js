@@ -1,9 +1,8 @@
 var mongoose = require('mongoose');
 var Q = require('q');
 
-var DB = {};
-
-module.exports = DB;
+function DB () {
+}
 
 DB.initialize = function (uri) {
 	var deferred = Q.defer();
@@ -20,3 +19,5 @@ DB.initialize = function (uri) {
 
 	return deferred.promise;
 };
+
+module.exports = DB;
