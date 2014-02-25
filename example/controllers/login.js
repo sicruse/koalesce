@@ -14,7 +14,7 @@ module.exports = {
         Users: 'models/users'
     },
 
-    // runs in order before any route on this controller
+    // runs in order before any route on this Wcontroller
     middleware : [
         {
             name: 'passport-translate-query',
@@ -40,6 +40,15 @@ module.exports = {
             requestContentType: 'form',
             responseContentType: 'html',
             handler: passport.authenticate('local', passportRedirect)
+        },
+        register: {
+            url: '/login/register',
+            action: 'POST',
+            requestContentType: 'form',
+            responseContentType: 'html',
+            handler: function* () {
+                
+            }
         },
         authFacebook: {
             url: config.auth.facebook.path,

@@ -2,9 +2,7 @@ var mongoose = require('mongoose');
 var bcrypt = require('bcrypt-nodejs');
 var crypto = require('crypto');
 var Q = require('q');
-
-var StatsD = require('node-statsd').StatsD;
-var StatsDClient = new StatsD();
+var DbStats = require('../helpers/dbstats');
 
 var UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
@@ -77,15 +75,13 @@ var UserModel = mongoose.model('User', UserSchema);
 module.exports = UserModel;
 
 UserModel.createUser = function (data) {
+    var track = new DbStats('UserModel.createUser');
+
     var deferred = Q.defer();
 
-    mongoose.poolActiveConnections += 1;
-    StatsDClient.gauge('DB.poolActiveConnections', mongoose.poolActiveConnections);
-    var startTime = new Date().getTime();
+    track.start();
     UserModel.create(data, function(err, users) {
-		var endTime = new Date().getTime();
-        mongoose.poolActiveConnections -= 1;
-		StatsDClient.timing('DB.createUser', endTime - startTime);
+        track.end();
 
 		if ( err ) {
 			deferred.reject(err);
