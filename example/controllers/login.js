@@ -1,4 +1,5 @@
 var passport = require('koa-passport');
+var config = require('../config');
 //var Joi = require('joi');
 //var Exception = require('../helpers/exception');
 
@@ -10,23 +11,13 @@ var passportRedirect = {
 module.exports = {
 
     dependencies : {
-        Auth: 'helpers/auth',
         Users: 'models/users'
     },
 
     // runs in order before any route on this controller
     middleware : [
         {
-            name: 'controllerMiddleware',
-            object: function* (next) {
-                console.log('controllerMiddleware start');
-                this.test1 = 1234;
-                yield next;
-                console.log('controllerMiddleware end');
-            }
-        },
-        {
-            name: 'req-translate',
+            name: 'passport-translate-query',
             object: function* (next) {
                 this.req.query = this.query;
                 yield next;
@@ -51,39 +42,37 @@ module.exports = {
             handler: passport.authenticate('local', passportRedirect)
         },
         authFacebook: {
-            url: '/auth/facebook',
+            url: config.auth.facebook.path,
             action: 'GET',
             handler: passport.authenticate('facebook')
         },
+        authFacebookCallback: {
+            url: config.auth.facebook.callbackPath,
+            action: 'GET',
+            handler: passport.authenticate('facebook', passportRedirect)
+        },
         authTwitter: {
-            url: '/auth/twitter',
+            url: config.auth.twitter.path,
             action: 'GET',
             handler: passport.authenticate('twitter')
-
         },
         authTwitterCallback: {
-            url: '/auth/twitter/callback',
+            url: config.auth.twitter.callbackPath,
             action: 'GET',
             responseContentType: 'html',
             handler: passport.authenticate('twitter', passportRedirect)
         },
         authGoogle: {
-            url: '/auth/google',
+            url: config.auth.google.path,
             action: 'GET',
             responseContentType: 'html',
-            handler: function* () {
-                console.log('beginning authentication');
-                yield passport.authenticate('google');
-            }
+            handler: passport.authenticate('google')
         },
         authGoogleCallback: {
-            url: '/auth/google/callback',
+            url: config.auth.google.callbackPath,
             action: 'GET',
             responseContentType: 'html',
-            handler: function* () {
-                console.log('handling callback');
-                yield passport.authenticate('google', passportRedirect);
-            }
+            handler: passport.authenticate('google', passportRedirect)
         }
     }
 };

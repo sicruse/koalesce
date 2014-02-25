@@ -48,24 +48,39 @@ var config = {
             })
         },
         {
-            name: 'sessions',
-            object: require('koa-sess')()
+            name: 'authentication',
+            object: [
+                require('koa-sess')(),
+                require('koa-passport').initialize(),
+                require('koa-passport').session()
+            ]
         },
-        {
-            name: 'passport-initialization',
-            object: require('koa-passport').initialize()
-        },
-        {
-            name: 'passport-session',
-            object: require('koa-passport').session()
-        }
     ],
     endpoints: [
-        { port: 4002, type: 'http' },
+        { port: 4000, type: 'http' },
         //{ port: 4001, type: 'https' }
     ],
     mongoose: {
         uri: 'mongodb://localhost/example'
+    },
+    auth: {
+        facebook: { 
+            clientId: 'facebook-client-id',
+            secret: 'facebook-secret',
+            path: '/auth/facebook',
+            callbackPath: '/auth/facebook/callback'
+        },
+        twitter: { 
+            consumerKey: 'twitter-consumer-key',
+            secret: 'twitter-secret',
+            path: '/auth/twitter',
+            callbackPath: '/auth/twitter/callback'
+        },
+        google: {
+            path: '/auth/google',
+            callbackPath: '/auth/google/callback'
+        },
+        uri: 'http://192.168.1.110:4000'
     }
 };
 

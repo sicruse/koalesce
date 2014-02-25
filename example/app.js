@@ -9,6 +9,9 @@ function* startApp () {
 	var db = require('./db');
 	yield db.initialize(config.mongoose.uri);
 
+	var auth = require('./helpers/auth');
+	auth.initialize(config.auth);
+
 	var app = koalesce(config);
 	app.keys = ['my-session-secret'];	
 }
