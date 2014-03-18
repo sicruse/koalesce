@@ -43,7 +43,6 @@ module.exports = function (grunt) {
           'helpers/**/*.js',
           'middleware/**/*.js',
           'models/**/*.js',
-          'services/**/*.js',
           'Gruntfile.js'
         ]
       },

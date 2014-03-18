@@ -1,280 +1,174 @@
 var _ = require('underscore');
 var _s = require('underscore.string');
 var Q = require('q');
-var Joi = require('joi');
 
 var co_body = require('madams5-co-body');
 var co_busboy = require('co-busboy');
 var compose = require('koa-compose');
+
+var validation = require('./validation');
+
+var koa = require('koa');
+var router = require('koa-router');
 
 var __fs = require('fs');
 var fs = {
     readdir: Q.nfbind(__fs.readdir)
 };
 
-var koa = require('koa');
-var router = require('koa-router');
-var app = koa();
+var responseContentTypes = require('./responseContentTypes');
 
-function assert (value, error) {
-    if ( !value ) {
-        throw new Error(error);
-    }
-}
+module.exports = Koalesce;
 
-var responseContentTypes = {
-    'text': {
-        bindType: function (context) {
-            context.response.type = 'text/plain';
-        },
-        validate: function (context) {
-            var type = typeof context.response.body;
-            assert(
-                typeof context.response.body == 'string' ||
-                Buffer.isBuffer(context.response.body) ||
-                context.response.body instanceof Stream,
-                'Return type \'text\' must be a string, buffer, or stream.'
-            ); 
-        }   
-    },
-    'html': {
-        bindType: function (context) {
-            context.response.type = 'text/html';
-        },
-        validate: function (context) {
-            assert(
-                typeof context.response.body == 'string' ||
-                Buffer.isBuffer(context.response.body) ||
-                true, //context.response.body instanceof Stream,
-                'Return type \'text\' must be a string, buffer, or stream.'
-            ); 
+function* Koalesce (config, logInfo, logWarning, logError) {
+    this.config = config;
+    
+    this._logInfoFunc = logInfo;
+    this._logWarningFunc = logWarning;
+    this._logErrorFunc = logError;
+
+    validation.validateConfiguration(config);
+
+    if ( process.argv.length > 2 ) {
+        switch ( process.argv[2] ) {
+            case 'routes': 
+                yield* this._printRoutes();
+            break;
         }
-    },
-    'json': {
-        bindType: function (context) {
-            context.response.type = 'application/json';
-        },
-        validate: function (context) {
-            assert(
-                typeof context.response.body == 'object',
-                'Return type \'json\' must be an object.'
-            );
-        }
-    },
-    'file': {
-        bindType: function (context) {
-            if ( !context.response.type ) {
-                context.response.type = 'application/octet-stream';
-            }    
-        },
-        validate: function (context) {
-            assert(
-                typeof context.response.body == 'string' ||
-                Buffer.isBuffer(context.response.body) ||
-                context.response.body instanceof Stream,
-                'Return type \'text\' must be a string, buffer, or stream.'
-            );            
-        }
-    }
-}
-
-function loadMiddleware (middleware) {
-    for ( var middlewareIndex in middleware ) {
-        var object = middleware[middlewareIndex];
-
-        if ( !object.name ) {
-            console.log('Koalesce(config): Middleware entry #' + middlewareIndex + ' is missing field \'name\'.');
-            continue;
-        }
-
-        console.log('-- Loading middleware:', object.name);
-
-        if ( !object.object ) {
-            console.log('Koalesce(config): Middleware \'' + object.name + '\' is missing field \'object\'.');
-            continue;
-        }
-
-        // check if it's a generator function or array of generator functions
-
-        try {
-            if ( Array.isArray(object.object) ) {
-                for ( var i = 0 ; i < object.object.length ; i++ ) {
-                    app.use(object.object[i]);
-                }
-            } else { // it's a generator function
-                app.use(object.object);
-            }
-        } catch (err) {
-            console.log('Koalesce: Error loading middleware \'' + object.name + '\'.');
-            console.log(err);
-        }
-    }
-}
-
-function loadDependencies (basePath, list) {
-    var dependencies = {};
-
-    for ( var dependencyName in list ) {
-        try {
-            var dependencyValue = list[dependencyName];
-            if ( typeof dependencyValue  == 'string' ) {
-                dependencies[dependencyName] = require(basePath + '/' + dependencyValue);
-            } else if ( typeof dependencyValue == 'object' && dependencyValue.path !== null ) {
-                dependencies[dependencyName] = require(basePath + '/' + dependencyValue.path);
-                if ( dependency[dependencyName].filter ) {
-                    dependencies[dependencyName] = dependencyValue.filter(dependencies[dependencyName]);
-                }
-            } else {
-                dependencies[dependencyName] = dependencyValue;
-            }
-        } catch ( err ) {
-            console.log('Koalesce: Could not resolve dependency.');
-            console.log(err);
-        }
+        process.exit(0);
     }
 
-    return dependencies;
+    this.app = koa();
+
+    return this;
 }
 
-function* loadControllers (basePath, controllerPaths) {
-    for ( var i = 0 ; i < controllerPaths.length ; i++ ) {
-        var path = basePath + '/' + controllerPaths[i];
+Koalesce.prototype._logInfo = function () {
+    if ( this._logInfoFunc ) {
+        this._logInfoFunc.apply(this, arguments);
+    } else {
+        console.log.apply(this, arguments);
+    }
+};
+
+Koalesce.prototype._logWarning = function () {
+    if ( this._logWarningFunc ) {
+        this._logWarningFunc.apply(this, arguments);
+    } else {
+        console.log.apply(this, arguments);
+    }
+};
+
+Koalesce.prototype._logError = function () {
+    console.log(this._logErrorFunc);
+    if ( this._logErrorFunc ) {
+        this._logErrorFunc.apply(this, arguments);
+    } else {
+        console.log.apply(this, arguments);
+    }
+};
+
+Koalesce.prototype._printRoutes = function* () {
+    var Table = require('cli-table');
+    var table = new Table({
+        head: ['Controller', 'Action', 'Request', 'Response', 'URL'],
+        colWidths: [15, 10, 10, 10, 35],
+        chars: { 'mid': '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' }
+    })
+
+    var config = this.config;
+
+    for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
+        var path = config.basePath + '/' + config.controllerPaths[i];
 
         var files = yield fs.readdir(path);
         for ( var fileIndex in files ) {
             var file = files[fileIndex];
 
-            console.log('-- Loading controller \'' + file + '\'');
             var controller;
-
             try {
                 controller = require(path + '/' + file);
             } catch ( err ) {
-                console.log('Koalesce: Controller \'' + file +'\' contains an error.');
-                console.log(err);
+                this._logError('Koalesce: Controller \'' + file +'\' contains an error.', err);
                 continue;
             }
 
             if ( !controller.routes ) {
-                console.log('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
+                this._logError('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
                 continue;
             }
 
-            var dependencies = loadDependencies(basePath, controller.dependencies || []);
-
             for ( var routeName in controller.routes ) {
                 var route = controller.routes[routeName];
-                processControllerPath(file, controller, dependencies, routeName, route);
+                table.push([file, route.action, route.requestContentType || '-', route.responseContentType, route.url]);
             }
         }
     }
-}
 
-// 
-// route = {
-//   string url
-//   string action - http action ('GET','POST',etc.)
-//   string requestContentType - ('form', 'json', 'file', 'text') defaults to 
-//   string responseContentType - ('html', 'json', 'file', 'text') defaults to 'html'
-//   array injectors (optional)
-//   function* handler
-// }
-function processControllerPath (file, controller, dependencies, routeName, route) {
-    if ( !route.url ) {
-        console.log('Koalesce: Controller \'' + file + '\' is missing a url for a path in \'' + routeName + '\'.');
-        return;
-    }
+    console.log(table.toString());
+};
 
-    if ( !route.handler ) {
-        console.log('Koalesce: Controller \'' + file + '\' is missing a handler for \'' + routeName + '\'.');
-        return;
-    }
+Koalesce.prototype.start = function* () {
+    this._loadMiddleware();
+    this._loadBodyParser();
+    this._createRouter();
+    yield* this._loadControllers();
+    this._createEndpoints();
+};
 
-    if ( !route.action ) {
-        route.action = 'GET';
-    }
+Koalesce.prototype._loadMiddleware = function () {
+    this._logInfo('Loading middleware');
 
-    if ( !route.responseContentType ) {
-        route.responseContentType = 'html';
-    }
+    var app = this.app;
+    
+    this._routeAgnosticMiddleware = this._loadMiddlewareSet(this.config.middleware.routeAgnostic); 
+    _.each(this._routeAgnosticMiddleware, function (middleware) { app.use(middleware); });
+    this._routeAwareMiddleware = this._loadMiddlewareSet(this.config.middleware.routeAware);
+};
 
-    if ( !responseContentTypes[route.responseContentType] ) {
-        console.log('Koalesce: Controller \'' + file + '\' has an unknown response type of \'' + route.responseContentType + '\' for the \'' + route.url + '\' path in \'' + routeName + '\'.');
-        return;
-    }
+Koalesce.prototype._loadMiddlewareSet = function (middleware) {
+    var result = [];
 
-    console.log('-- Creating route', route.action, route.url, '\tresponseContentType:', route.responseContentType);
+    for ( var middlewareIndex in middleware ) {
+        var object = middleware[middlewareIndex];
 
-    var callStack = [function* (next) {
-        this.route = route;
-        responseContentTypes[route.responseContentType].bindType(this);
-        yield next;
-        responseContentTypes[route.responseContentType].validate(this);
-    }];
-
-    // compose all middleware for routes
-    if ( controller.middleware ) {
-        callStack = callStack.concat(
-            _.map(controller.middleware, function (middleware) {
-                return middleware.object;
-            })
-        );
-        if ( route.middleware ) {
-            callStack = callStack.concat(
-                _.map(route.middleware, function (middleware) {
-                    return middleware.object;
-                })
-            );
-        }
-    }
-
-    callStack.push(function* (next) {
-        for ( var dependencyName in dependencies ) {
-            var dependency = dependencies[dependencyName];
-            this[dependencyName] = dependency;
-        }
-        yield next;
-    });
-    callStack.push(route.handler);
-
-    app[route.action.toLowerCase()](route.url, compose(callStack));
-}
-
-function createEndpoints (endpoints) {
-
-    for ( var endpointIndex in endpoints ) {
-        var endpoint = endpoints[endpointIndex];
-
-        console.log('-- Creating endpoint', endpoint);
-
-        if ( !endpoint.port || !endpoint.type ) {
-            console.log('Koalesce(config): Endpoint entry #' + endpointIndex + ' is missing a valid port or type field.');
+        if ( !object.name ) {
+            this._logWarning('Koalesce(config): Middleware entry #' + middlewareIndex + ' is missing field \'name\'.');
             continue;
         }
 
+        this._logInfo('-- Loading middleware:', object.name);
+
+        if ( !object.object ) {
+            this._logWarning('Koalesce(config): Middleware \'' + object.name + '\' is missing field \'object\'.');
+            continue;
+        }
+
+        // check if it's a generator function or array of generator functions
         try {
-            if ( endpoint.type == 'http' ) {
-                require('http').createServer(app.callback()).listen(endpoint.port);
-            } else if ( endpoint.type == 'https' ) {
-                require('https').createServer(app.callback()).listen(endpoint.port);
-            } else {
-                console.log('Koalesce(config): Endpoint of type \'' + endpoint.type + '\' is not valid.');
+            if ( Array.isArray(object.object) ) {
+                for ( var i = 0 ; i < object.object.length ; i++ ) {
+                    result.push(object.object[i]);
+                }
+            } else { // it's a generator function
+                result.push(object.object);
             }
-        } catch ( err ) {
-            console.log('Koalesce: Endpoint ' + endpoint.type + ':' + endpoint.port + ' could not be created:', err);
+        } catch (err) {
+            this._logError('Koalesce: Error loading middleware \'' + object.name + '\'.', err);
         }
     }
-}
 
-function loadBodyParser (limits) {
-    _.defaults(limits, {
-        json: '1mb',
-        form: '1mb',
-        text: '1mb',
-        file: '1mb',
-    });
+    return result;
+};
 
-    app.use(function* (next) {
+Koalesce.prototype._loadBodyParser = function () {
+    this._logInfo('Loading body parser');
+
+    var limits = this.config.bodyLimits;
+
+    var self = this;
+
+    this.app.use(function* (next) {
         var contentType = this.request.header['content-type'];
 
         var opts = {
@@ -303,7 +197,7 @@ function loadBodyParser (limits) {
                     this.request.body.files.push(part);
                 }
             } else {
-                console.log('Koalesce: Invalid content type \'' + contentType + '\'.');
+                self._logWarning('Koalesce: Invalid content type \'' + contentType + '\'.');
                 this.status = 415;
                 this.body = 'Unsupported or missing content-type';
                 return;
@@ -312,130 +206,144 @@ function loadBodyParser (limits) {
 
         yield next;
     });
-}
-
-function* initialize (config) {
-    console.log('Loading middleware');
-    loadMiddleware(config.middleware);
-
-    console.log('Loading body parser');
-    loadBodyParser(config.bodyLimits);
-
-    console.log('Creating router');
-    app.use(router(app));
-
-    console.log('Binding controllers');
-    yield* loadControllers(config.basePath, config.controllerPaths);
-
-    console.log('Creating endpoints');
-    createEndpoints(config.endpoints);;
-
-    // models
-    // views
 };
 
-function validateConfiguration(config) {
-    _.defaults(config, { 
-        basePath: __dirname,
-        controllerPaths: ['controllers'],
-        bodyLimits: {
-            json: '1mb',
-            form: '1mb',
-            text: '1mb',
-            file: '5mb'
-        },
-        middleware: [],
-        endpoints: [ { port: 4000, type: 'http' } ]
-    });
+Koalesce.prototype._createRouter = function () {
+    var app = this.app;
 
-    var errors = [];
+    this._logInfo('Creating router');
+    app.use(router(app));
+};
 
-    if ( typeof config.basePath !== 'string' ) {
-        errors.push("Configuration setting 'basePath' must be a string.");
-    }
+Koalesce.prototype._loadControllers = function* () {
+    var config = this.config;
 
-    var basePathStats = __fs.statSync(config.basePath); // Sync is okay, we're just initializing
-    if ( !basePathStats.isDirectory() ) {
-        errors.push("Configuration setting 'basePath' must be a valid directory.");
-    }
+    this._logInfo('Binding controllers');
 
-    if ( !Array.isArray(config.controllerPaths) ) {
-        errors.push("Configuration setting 'controllerPaths' must be an array.");
-    }
+    var routeAwareMiddleware = this._routeAwareMiddleware;
 
     for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
-        var controllerPath = config.controllerPaths[i];
-        var controllerPathStats = __fs.statSync(controllerPath);
-        if ( !controllerPathStats.isDirectory() ) {
-            errors.push("Configuration setting 'controllerPaths' contains path '" + controllerPath + "' that does not exist.");
-        }
-    }
+        var path = config.basePath + '/' + config.controllerPaths[i];
 
-    if ( typeof bodyLimits !== 'object' ) {
-        errors.push("Configuration setting 'bodyLimits' must be a hash.");
-    }
+        var files = yield fs.readdir(path);
+        for ( var fileIndex in files ) {
+            var file = files[fileIndex];
 
-    var bodyLimitsKeys = ['json', 'form', 'text', 'file'];
+            this._logInfo('-- Loading controller \'' + file + '\'');
+            var controller;
 
-    for ( var i = 0 ; i < bodyLimitsKeys.length ; i++ ) {
-        var bodyLimitsKey = bodyLimitsKeys[i];
-        if ( !bodyLimitsKeys.hasOwnProperty(bodyLimitsKey) ) {
-            errors.push("Configuration setting 'bodyLimits' is missing key '" + bodyLimitsKey + "'.");
-        }
-    }
-
-    if ( !Array.isArray(config.middleware) ) {
-        errors.push("Configuration setting 'middleware' must be an array.");
-    }
-
-    for ( var i = 0 ; i < config.middleware.length ; i++ ) {
-        var middlewareDescriptor = config.middleware[i];
-
-        if ( !middlewareDescriptor.hasOwnProperty('name') ) {
-            errors.push("Configuration setting 'middleware' contains a hash missing the 'name' field.");
-        }
-
-        if ( !middlewareDescriptor.hasOwnProperty('object') ) {
-            errors.push("Configuration setting 'middleware' contains a hash missing the 'object' field.");
-        }
-
-        if ( typeof middlewareDescriptor.object !== 'function' ) {
-            errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a function.");
-        } else {
-            if ( !_s.startsWith(middlewareDescriptor.object.toString(), 'function*') ) {
-                errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a generator function.");
+            try {
+                controller = require(path + '/' + file);
+            } catch ( err ) {
+                this._logError('Koalesce: Controller \'' + file +'\' contains an error.', err);
+                continue;
             }
-        }
-    }
 
-    if ( !Array.isArray(config.endpoints) ) {
-        errors.push("Configuration setting 'endpoints' must be an array.");
-    }
-
-    for ( var i = 0 ; i < config.endpoints.length ; i++ )
-    {
-        if ( !typeof config.endpoints === 'object' ) {
-            errors.push("Configuration setting 'endpoints' must contain only object types.");
-        } else {
-            if ( !config.endpoints.port ) {
-                errors.push("Configuration setting 'endpoints' entry must be an object that has a port field.");
+            if ( !controller.routes ) {
+                this._logError('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
+                continue;
             }
-            if ( !config.endpoints.type ) {
-                errors.push("Configuration setting 'endpoints' entry must be an object that has a type field of 'http' or 'https'.");
-            }            
+
+            var dependencies = this._loadDependencies(controller.dependencies || []);
+
+            for ( var routeName in controller.routes ) {
+                var route = controller.routes[routeName];
+                this._loadRoute(controller, dependencies, routeName, route);
+            }
         }
     }
 }
 
-var koalesce = function (config) {
-    validateConfiguration(config);
+Koalesce.prototype._loadDependencies = function (list) {
+    var dependencies = {};
 
-    Q.async(initialize)(config).fail(function (err) {
-        console.log('Error Initializing Koalesce');
-        console.log(err);
-    });
+    for ( var dependencyName in list ) {
+        try {
+            var dependencyValue = list[dependencyName];
+            if ( typeof dependencyValue === 'string' ) {
+                dependencies[dependencyName] = require(this.config.basePath + '/' + dependencyValue);
+            } else {
+                dependencies[dependencyName] = dependencyValue;
+            }
+        } catch ( err ) {
+            this._logError('Koalesce: Could not resolve dependency.', err);
+        }
+    }
 
-    return app;
+    return dependencies;
 };
 
-module.exports = koalesce;
+Koalesce.prototype._loadRoute = function (controller, dependencies, routeName, route) {
+    validation.validateRoute(route);
+
+    this._logInfo('-- Creating route', route.action, '(' + route.responseContentType + ')', route.url);
+
+    var callStack = [function* (next) {
+        this.route = route;
+        responseContentTypes[route.responseContentType].bindType(this);
+        yield next;
+        responseContentTypes[route.responseContentType].validate(this);
+    }];
+
+    callStack = callStack.concat(this._routeAwareMiddleware);
+
+    // compose all middleware for routes
+    if ( controller.middleware ) {
+        callStack = callStack.concat(
+            _.map(controller.middleware, function (middleware) {
+                return middleware.object;
+            })
+        );
+        if ( route.middleware ) {
+            callStack = callStack.concat(
+                _.map(route.middleware, function (middleware) {
+                    return middleware.object;
+                })
+            );
+        }
+    }
+
+    var routeDependencies = this._loadDependencies(route.dependencies || []);
+
+    callStack.push(function* (next) {
+        for ( var dependencyName in dependencies ) {
+            var dependency = dependencies[dependencyName];
+            this[dependencyName] = dependency;
+        }
+        for ( var dependencyName in routeDependencies ) {
+            var dependency = routeDependencies[dependencyName];
+            this[dependencyName] = dependency;
+        }
+        yield next;
+    });
+    callStack.push(route.handler);
+
+    this.app[route.action.toLowerCase()](route.url, compose(callStack));
+};
+
+Koalesce.prototype._createEndpoints = function () {
+    this._logInfo('Creating endpoints');
+
+    for ( var endpointIndex in this.config.endpoints ) {
+        var endpoint = this.config.endpoints[endpointIndex];
+
+        this._logInfo('-- Creating endpoint', endpoint);
+
+        if ( !endpoint.port || !endpoint.type ) {
+            this._logError('Koalesce(config): Endpoint entry #' + endpointIndex + ' is missing a valid port or type field.');
+            continue;
+        }
+
+        try {
+            if ( endpoint.type == 'http' ) {
+                require('http').createServer(this.app.callback()).listen(endpoint.port);
+            } else if ( endpoint.type == 'https' ) {
+                require('https').createServer(this.app.callback()).listen(endpoint.port);
+            } else {
+                this._logError('Koalesce(config): Endpoint of type \'' + endpoint.type + '\' is not valid.');
+            }
+        } catch ( err ) {
+            this._logError('Koalesce: Endpoint ' + endpoint.type + ':' + endpoint.port + ' could not be created:', err);
+        }
+    }
+};
