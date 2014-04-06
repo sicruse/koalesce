@@ -109,12 +109,23 @@ Koalesce.prototype._printRoutes = function* () {
 };
 
 Koalesce.prototype.start = function* () {
+    this._loadStores();
     this._loadMiddleware();
     this._loadBodyParser();
     this._createRouter();
     yield* this._loadControllers();
     this._createEndpoints();
 };
+
+Koalesce.prototype._loadStores = function () {
+    this._logInfo('Loading stores');
+
+    for ( var storeName in this.config.stores ) {
+        this._logInfo('-- Loading store:', storeName);
+        var store = this.config.stores[storeName];
+        var storeFile = this.config.basePath + '/' + store.file;
+    }
+}
 
 Koalesce.prototype._loadMiddleware = function () {
     this._logInfo('Loading middleware');
