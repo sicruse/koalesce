@@ -33,9 +33,9 @@ function* Koalesce (config, logInfo, logWarning, logError) {
         switch ( process.argv[2] ) {
             case 'routes': 
                 yield* this._printRoutes();
+                process.exit(0);
             break;
         }
-        process.exit(0);
     }
 
     this.app = koa();
@@ -122,8 +122,12 @@ Koalesce.prototype._loadStores = function () {
 
     for ( var storeName in this.config.stores ) {
         this._logInfo('-- Loading store:', storeName);
-        var store = this.config.stores[storeName];
-        var storeFile = this.config.basePath + '/' + store.file;
+        var storeConfig = this.config.stores[storeName];
+        var storeFile = this.config.basePath + '/' + storeConfig.file;
+        var store = require(storeFile);
+        if ( store.initialize ) {
+            store.initialize(storeConfig);
+        }
     }
 }
 
@@ -259,7 +263,7 @@ Koalesce.prototype._loadControllers = function* () {
 
             for ( var routeName in controller.routes ) {
                 var route = controller.routes[routeName];
-                this._loadRoute(controller, dependencies, routeName, route);
+                this._loadRoute(file, controller, dependencies, routeName, route);
             }
         }
     }
@@ -284,8 +288,8 @@ Koalesce.prototype._loadDependencies = function (list) {
     return dependencies;
 };
 
-Koalesce.prototype._loadRoute = function (controller, dependencies, routeName, route) {
-    validation.validateRoute(route);
+Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeName, route) {
+    validation.validateRoute(file, routeName, route);
 
     this._logInfo('-- Creating route', route.action, '(' + route.responseContentType + ')', route.url);
 

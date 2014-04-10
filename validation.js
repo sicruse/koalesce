@@ -5,6 +5,32 @@ var fs = require('fs');
 
 var responseContentTypes = require('./responseContentTypes');
 
+function validateMiddleware (middleware) {
+    var errors = [];
+
+    for ( var i = 0 ; i < middleware.length ; i++ ) {
+        var middlewareDescriptor = config.middleware.routeAgnostic[i];
+
+        if ( !middlewareDescriptor.hasOwnProperty('name') ) {
+            errors.push("Configuration setting 'middleware' contains a hash missing the 'name' field.");
+        }
+
+        if ( !middlewareDescriptor.hasOwnProperty('object') ) {
+            errors.push("Configuration setting 'middleware' contains a hash missing the 'object' field.");
+        }
+
+        if ( typeof middlewareDescriptor.object !== 'function' ) {
+            errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a function.");
+        } else {
+            if ( !_s.startsWith(middlewareDescriptor.object.toString(), 'function*') ) {
+                errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a generator function.");
+            }
+        }
+    }
+
+    return errors;
+}       
+
 module.exports = {
     validateConfiguration: function (config) {
         _.defaults(config, { 
@@ -16,6 +42,7 @@ module.exports = {
                 text: '1mb',
                 file: '5mb'
             },
+            stores: {},
             middleware: {
                 routeAgnostic: [],
                 routeAware: []
@@ -59,35 +86,30 @@ module.exports = {
             }
         }
 
+        if ( typeof config.stores !== 'object' ) {
+            errors.push("Configuration setting 'stores' must be a hash.");
+        } else {
+            for ( var storeName in config.stores ) {
+                var store = config.stores[storeName];
+                if ( !store.file ) {
+                    errors.push("Configuration setting 'stores' must contain a string field 'file'.");
+                }
+            }
+        }
+
         if ( typeof config.middleware !== 'object' ) {
             errors.push("Configuration setting 'middleware' must be a hash.");
 
             if ( !Array.isArray(config.middleware.routeAgnostic) ) {
                 errors.push("Configuration setting 'middleware.routeAgnostic' must be an array.");
+            } else {
+                errors.concat(validateMiddleware(config.middleware.routeAgnostic));
             }
 
             if ( !Array.isArray(config.middleware.routeAware) ) {
                 errors.push("Configuration setting 'middleware.routeAware' must be an array.");
-            }
-        }
-
-        for ( var i = 0 ; i < config.middleware.length ; i++ ) {
-            var middlewareDescriptor = config.middleware[i];
-
-            if ( !middlewareDescriptor.hasOwnProperty('name') ) {
-                errors.push("Configuration setting 'middleware' contains a hash missing the 'name' field.");
-            }
-
-            if ( !middlewareDescriptor.hasOwnProperty('object') ) {
-                errors.push("Configuration setting 'middleware' contains a hash missing the 'object' field.");
-            }
-
-            if ( typeof middlewareDescriptor.object !== 'function' ) {
-                errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a function.");
             } else {
-                if ( !_s.startsWith(middlewareDescriptor.object.toString(), 'function*') ) {
-                    errors.push("Configuration setting 'middleware' contains a hash '" + middlewareDescriptor.name + "' whose object is not a generator function.");
-                }
+                errors.concat(validateMiddleware(config.middleware.routeAware));
             }
         }
 
@@ -116,7 +138,7 @@ module.exports = {
         }
     },
 
-    validateRoute: function (route) {
+    validateRoute: function (file, routeName, route) {
         var errors = [];
 
         _.defaults(route, {
