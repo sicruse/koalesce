@@ -73,6 +73,7 @@ Koalesce.prototype._printRoutes = function* () {
     var table = new Table({
         head: ['Controller', 'Action', 'Request', 'Response', 'URL'],
         colWidths: [15, 10, 10, 10, 35],
+        //colWidths: [16, 8, 6, 6, 44],
         chars: { 'mid': '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' }
     })
 
@@ -192,16 +193,16 @@ Koalesce.prototype._loadBodyParser = function () {
         }
 
         if ( this.request.method !== 'GET' ) { 
-            if ( contentType == 'application/json' ) {
+            if ( _s.startsWith(contentType, 'application/json') ) {
                 opts.limit = limits.json;
                 this.request.body = yield co_body.json(this, opts);
-            } else if ( contentType == 'application/x-www-form-urlencoded' ) {
+            } else if ( _s.startsWith(contentType, 'application/x-www-form-urlencoded') ) {
                 opts.limit = limits.form;
                 this.request.body = yield co_body.form(this, opts);
-            } else if ( contentType == 'text/plain' ) {
+            } else if ( _s.startsWith(contentType, 'text/plain') ) {
                 opts.limit = limits.text;
                 this.request.body = yield co_body.text(this, opts);
-            } else if ( contentType == 'form/multipart' ) {
+            } else if ( _s.startsWith(contentType, 'form/multipart') ) {
                 var parts = co_busboy(this);
                 this.request.body = {};
                 this.request.body.fields = parts.fields;
