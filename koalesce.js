@@ -60,7 +60,6 @@ Koalesce.prototype._logWarning = function () {
 };
 
 Koalesce.prototype._logError = function () {
-    console.log(this._logErrorFunc);
     if ( this._logErrorFunc ) {
         this._logErrorFunc.apply(this, arguments);
     } else {
@@ -260,7 +259,7 @@ Koalesce.prototype._loadControllers = function* () {
                 continue;
             }
 
-            var dependencies = this._loadDependencies(controller.dependencies || []);
+            var dependencies = this._loadDependencies(controller.dependencies || [], 'controller \'' + file + '\'');
 
             for ( var routeName in controller.routes ) {
                 var route = controller.routes[routeName];
@@ -270,7 +269,7 @@ Koalesce.prototype._loadControllers = function* () {
     }
 }
 
-Koalesce.prototype._loadDependencies = function (list) {
+Koalesce.prototype._loadDependencies = function (list, forWhat) {
     var dependencies = {};
 
     for ( var dependencyName in list ) {
@@ -282,7 +281,7 @@ Koalesce.prototype._loadDependencies = function (list) {
                 dependencies[dependencyName] = dependencyValue;
             }
         } catch ( err ) {
-            this._logError('Koalesce: Could not resolve dependency.', err);
+            this._logError('Koalesce: Could not resolve dependency \'' + dependencyName + '\' for ' + forWhat + '.');
         }
     }
 
@@ -319,7 +318,7 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
         }
     }
 
-    var routeDependencies = this._loadDependencies(route.dependencies || []);
+    var routeDependencies = this._loadDependencies(route.dependencies || [], 'route \'' + routeName + '\'.');
 
     callStack.push(function* (next) {
         for ( var dependencyName in dependencies ) {
