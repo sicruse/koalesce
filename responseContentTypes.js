@@ -37,8 +37,8 @@ module.exports = {
             context.response.type = 'application/json';
         },
         validate: function (context) {
-            assert(
-                typeof context.response.body == 'object',
+	    assert(
+                context.response.body !== null && typeof context.response.body == 'object',
                 'Return type \'json\' must be an object.'
             );
         }

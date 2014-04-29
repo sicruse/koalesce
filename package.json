@@ -14,13 +14,13 @@
     "middleware"
   ],
   "author": {
-    "name": "mradams5"
+    "name": "madams5"
   },
   "license": "BSD",
   "readme": "route and middleware manager for koa",
   "readmeFilename": "README.md",
   "homepage": "",
-  "_id": "koalesce@0.0.12",
+  "_id": "koalesce@0.0.13",
   "dependencies": {
     "co-busboy": "^1.0.0",
     "koa": "^0.5.1",
@@ -29,9 +29,7 @@
     "madams5-co-body": "0.0.2",
     "q": "^1.0.0",
     "underscore": "^1.6.0",
-    "underscore.string": "^2.3.3"
-  },
-  "devDependencies": {
+    "underscore.string": "^2.3.3",
     "cli-table": "^0.3.0"
   }
 }
