@@ -309,13 +309,14 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
                 return middleware.object;
             })
         );
-        if ( route.middleware ) {
-            callStack = callStack.concat(
-                _.map(route.middleware, function (middleware) {
-                    return middleware.object;
-                })
-            );
-        }
+    }
+
+    if ( route.middleware ) {
+        callStack = callStack.concat(
+            _.map(route.middleware, function (middleware) {
+                return middleware.object;
+            })
+        );
     }
 
     var routeDependencies = this._loadDependencies(route.dependencies || [], 'route \'' + routeName + '\'.');

@@ -27,7 +27,7 @@ module.exports = {
             assert(
                 typeof context.response.body == 'string' ||
                 Buffer.isBuffer(context.response.body) ||
-                true, //context.response.body instanceof Stream,
+                context.response.body instanceof Stream,
                 'Return type \'text\' must be a string, buffer, or stream.'
             ); 
         }
@@ -37,10 +37,7 @@ module.exports = {
             context.response.type = 'application/json';
         },
         validate: function (context) {
-	    assert(
-                context.response.body !== null && typeof context.response.body == 'object',
-                'Return type \'json\' must be an object.'
-            );
+            // outgoing json content can be anything
         }
     },
     'file': {
