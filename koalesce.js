@@ -193,9 +193,6 @@ Koalesce.prototype._loadBodyParser = function () {
 
         if ( this.request.method !== 'GET' ) { 
             if ( _s.startsWith(contentType, 'application/json') ) {
-                if ( !this.request.body ) {
-                    this.request.body = {};
-                }
                 opts.limit = limits.json;
                 this.request.body = yield co_body.json(this, opts);
             } else if ( _s.startsWith(contentType, 'application/x-www-form-urlencoded') ) {
