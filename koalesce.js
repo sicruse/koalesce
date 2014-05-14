@@ -1,3 +1,5 @@
+'use strict';
+
 var _ = require('underscore');
 var _s = require('underscore.string');
 var Q = require('q');
@@ -68,24 +70,24 @@ Koalesce.prototype._logError = function () {
 };
 
 Koalesce.prototype._printRoutes = function* () {
-    var Table = require('cli-table');
-    var table = new Table({
+    let Table = require('cli-table');
+    let table = new Table({
         head: ['Controller', 'Action', 'Request', 'Response', 'URL'],
         colWidths: [15, 10, 10, 10, 35],
         //colWidths: [16, 8, 6, 6, 44],
         chars: { 'mid': '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' }
-    })
+    });
 
-    var config = this.config;
+    let config = this.config;
 
-    for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
-        var path = config.basePath + '/' + config.controllerPaths[i];
+    for ( let i = 0 ; i < config.controllerPaths.length ; i++ ) {
+        let path = config.basePath + '/' + config.controllerPaths[i];
 
-        var files = yield fs.readdir(path);
-        for ( var fileIndex in files ) {
-            var file = files[fileIndex];
+        let files = yield fs.readdir(path);
+        for ( let fileIndex in files ) {
+            let file = files[fileIndex];
 
-            var controller;
+            let controller;
             try {
                 controller = require(path + '/' + file);
             } catch ( err ) {
@@ -98,8 +100,8 @@ Koalesce.prototype._printRoutes = function* () {
                 continue;
             }
 
-            for ( var routeName in controller.routes ) {
-                var route = controller.routes[routeName];
+            for ( let routeName in controller.routes ) {
+                let route = controller.routes[routeName];
                 table.push([file, route.action, route.requestContentType || '-', route.responseContentType, route.url]);
             }
         }
@@ -109,7 +111,7 @@ Koalesce.prototype._printRoutes = function* () {
 };
 
 Koalesce.prototype.start = function* () {
-    this._loadStores();
+    yield* this._loadStores();
     this._loadMiddleware();
     this._loadBodyParser();
     this._createRouter();
@@ -117,16 +119,16 @@ Koalesce.prototype.start = function* () {
     this._createEndpoints();
 };
 
-Koalesce.prototype._loadStores = function () {
+Koalesce.prototype._loadStores = function* () {
     this._logInfo('Loading stores');
 
-    for ( var storeName in this.config.stores ) {
+    for ( let storeName in this.config.stores ) {
         this._logInfo('-- Loading store:', storeName);
-        var storeConfig = this.config.stores[storeName];
-        var storeFile = this.config.basePath + '/' + storeConfig.file;
-        var store = require(storeFile);
+        let storeConfig = this.config.stores[storeName];
+        let storeFile = this.config.basePath + '/' + storeConfig.file;
+        let store = require(storeFile);
         if ( store.initialize ) {
-            store.initialize(storeConfig);
+            yield* store.initialize(storeConfig);
         }
     }
 }
@@ -134,7 +136,7 @@ Koalesce.prototype._loadStores = function () {
 Koalesce.prototype._loadMiddleware = function () {
     this._logInfo('Loading middleware');
 
-    var app = this.app;
+    let app = this.app;
     
     this._routeAgnosticMiddleware = this._loadMiddlewareSet(this.config.middleware.routeAgnostic); 
     _.each(this._routeAgnosticMiddleware, function (middleware) { app.use(middleware); });
@@ -142,10 +144,10 @@ Koalesce.prototype._loadMiddleware = function () {
 };
 
 Koalesce.prototype._loadMiddlewareSet = function (middleware) {
-    var result = [];
+    let result = [];
 
-    for ( var middlewareIndex in middleware ) {
-        var object = middleware[middlewareIndex];
+    for ( let middlewareIndex in middleware ) {
+        let object = middleware[middlewareIndex];
 
         if ( !object.name ) {
             this._logWarning('Koalesce(config): Middleware entry #' + middlewareIndex + ' is missing field \'name\'.');
@@ -162,7 +164,7 @@ Koalesce.prototype._loadMiddlewareSet = function (middleware) {
         // check if it's a generator function or array of generator functions
         try {
             if ( Array.isArray(object.object) ) {
-                for ( var i = 0 ; i < object.object.length ; i++ ) {
+                for ( let i = 0 ; i < object.object.length ; i++ ) {
                     result.push(object.object[i]);
                 }
             } else { // it's a generator function
@@ -179,35 +181,56 @@ Koalesce.prototype._loadMiddlewareSet = function (middleware) {
 Koalesce.prototype._loadBodyParser = function () {
     this._logInfo('Loading body parser');
 
-    var limits = this.config.bodyLimits;
+    let limits = this.config.bodyLimits;
 
-    var self = this;
+    let self = this;
 
     this.app.use(function* (next) {
-        var contentType = this.request.header['content-type'];
+        let contentType = this.request.header['content-type'];
 
-        var opts = {
+        let opts = {
             encoding: this.request.header['content-encoding'] || 'utf8',
             length: this.request.header['content-length']
         }
 
-        if ( this.request.method !== 'GET' ) { 
+        if ( contentType ) { 
             if ( _s.startsWith(contentType, 'application/json') ) {
                 opts.limit = limits.json;
-                this.request.body = yield co_body.json(this, opts);
+                try {
+                    this.request.body = yield co_body.json(this, opts);
+                } catch ( err ) {
+                    this.status = 400;
+                    this.body = 'Expected json body in request.';
+                    self._logWarning('Koalesce: Expected json body in request.');
+                    return;
+                }
             } else if ( _s.startsWith(contentType, 'application/x-www-form-urlencoded') ) {
                 opts.limit = limits.form;
-                this.request.body = yield co_body.form(this, opts);
+                try {
+                    this.request.body = yield co_body.form(this, opts);                    
+                } catch ( err ) {
+                    this.status = 400;
+                    this.body = 'Expected form data in request.';
+                    self._logWarning('Koalesce: Expected form data in request.');
+                    return;
+                }
             } else if ( _s.startsWith(contentType, 'text/plain') ) {
                 opts.limit = limits.text;
-                this.request.body = yield co_body.text(this, opts);
+                try {
+                    this.request.body = yield co_body.text(this, opts);
+                } catch ( err ) {
+                    this.status = 400;
+                    this.body = 'Expected plain-text in request.';
+                    self._logWarning('Koalesce: Expected plain-text in request.');
+                    return;
+                }
             } else if ( _s.startsWith(contentType, 'form/multipart') ) {
-                var parts = co_busboy(this);
+                let parts = co_busboy(this);
                 this.request.body = {};
                 this.request.body.fields = parts.fields;
                 this.request.body.files = [];
 
-                var part;
+                let part;
                 while ( part = yield parts ) {
                     this.request.body.files.push(part);
                 }
@@ -219,33 +242,29 @@ Koalesce.prototype._loadBodyParser = function () {
             }
         }
 
-        yield next;
+        yield* next;
     });
 };
 
 Koalesce.prototype._createRouter = function () {
-    var app = this.app;
-
     this._logInfo('Creating router');
-    app.use(router(app));
+    this.app.use(router(this.app));
 };
 
 Koalesce.prototype._loadControllers = function* () {
-    var config = this.config;
+    let config = this.config;
 
     this._logInfo('Binding controllers');
 
-    var routeAwareMiddleware = this._routeAwareMiddleware;
+    for ( let i = 0 ; i < config.controllerPaths.length ; i++ ) {
+        let path = config.basePath + '/' + config.controllerPaths[i];
 
-    for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
-        var path = config.basePath + '/' + config.controllerPaths[i];
-
-        var files = yield fs.readdir(path);
-        for ( var fileIndex in files ) {
-            var file = files[fileIndex];
+        let files = yield fs.readdir(path);
+        for ( let fileIndex in files ) {
+            let file = files[fileIndex];
 
             this._logInfo('-- Loading controller \'' + file + '\'');
-            var controller;
+            let controller;
 
             try {
                 controller = require(path + '/' + file);
@@ -259,10 +278,10 @@ Koalesce.prototype._loadControllers = function* () {
                 continue;
             }
 
-            var dependencies = this._loadDependencies(controller.dependencies || [], 'controller \'' + file + '\'');
+            let dependencies = this._loadDependencies(controller.dependencies || [], 'controller \'' + file + '\'');
 
-            for ( var routeName in controller.routes ) {
-                var route = controller.routes[routeName];
+            for ( let routeName in controller.routes ) {
+                let route = controller.routes[routeName];
                 this._loadRoute(file, controller, dependencies, routeName, route);
             }
         }
@@ -270,11 +289,11 @@ Koalesce.prototype._loadControllers = function* () {
 }
 
 Koalesce.prototype._loadDependencies = function (list, forWhat) {
-    var dependencies = {};
+    let dependencies = {};
 
-    for ( var dependencyName in list ) {
+    for ( let dependencyName in list ) {
         try {
-            var dependencyValue = list[dependencyName];
+            let dependencyValue = list[dependencyName];
             if ( typeof dependencyValue === 'string' ) {
                 dependencies[dependencyName] = require(this.config.basePath + '/' + dependencyValue);
             } else {
@@ -293,10 +312,10 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
 
     this._logInfo('-- Creating route', route.action, '(' + route.responseContentType + ')', route.url);
 
-    var callStack = [function* (next) {
+    let callStack = [function* (next) {
         this.route = route;
         responseContentTypes[route.responseContentType].bindType(this);
-        yield next;
+        yield* next;
         responseContentTypes[route.responseContentType].validate(this);
     }];
 
@@ -319,18 +338,18 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
         );
     }
 
-    var routeDependencies = this._loadDependencies(route.dependencies || [], 'route \'' + routeName + '\'.');
+    let routeDependencies = this._loadDependencies(route.dependencies || [], 'route \'' + routeName + '\'.');
 
     callStack.push(function* (next) {
-        for ( var dependencyName in dependencies ) {
-            var dependency = dependencies[dependencyName];
+        for ( let dependencyName in dependencies ) {
+            let dependency = dependencies[dependencyName];
             this[dependencyName] = dependency;
         }
-        for ( var dependencyName in routeDependencies ) {
-            var dependency = routeDependencies[dependencyName];
+        for ( let dependencyName in routeDependencies ) {
+            let dependency = routeDependencies[dependencyName];
             this[dependencyName] = dependency;
         }
-        yield next;
+        yield* next;
     });
     callStack.push(route.handler);
 
@@ -340,8 +359,8 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
 Koalesce.prototype._createEndpoints = function () {
     this._logInfo('Creating endpoints');
 
-    for ( var endpointIndex in this.config.endpoints ) {
-        var endpoint = this.config.endpoints[endpointIndex];
+    for ( let endpointIndex in this.config.endpoints ) {
+        let endpoint = this.config.endpoints[endpointIndex];
 
         this._logInfo('-- Creating endpoint', endpoint);
 
@@ -351,15 +370,22 @@ Koalesce.prototype._createEndpoints = function () {
         }
 
         try {
-            if ( endpoint.type == 'http' ) {
-                require('http').createServer(this.app.callback()).listen(endpoint.port);
-            } else if ( endpoint.type == 'https' ) {
-                require('https').createServer(this.app.callback()).listen(endpoint.port);
-            } else {
-                this._logError('Koalesce(config): Endpoint of type \'' + endpoint.type + '\' is not valid.');
+            switch ( endpoint.type ) {
+                case 'http': 
+                    require('http').createServer(this.app.callback()).listen(endpoint.port);
+                break;
+                case 'https': {
+                    let privateKey = __fs.readFileSync(endpoint.privateKeyFile);
+                    let certificate = __fs.readFileSync(endpoint.certificateFile);
+                    require('https').createServer({ key: privateKey, cert: certificate }, this.app.callback()).listen(endpoint.port);
+                }
+                break;
+                default:
+                    this._logError('Koalesce(config): Endpoint of type \'' + endpoint.type + '\' is not valid.');
+                break;
             }
         } catch ( err ) {
-            this._logError('Koalesce: Endpoint ' + endpoint.type + ':' + endpoint.port + ' could not be created:', err);
+            this._logError('Koalesce: Endpoint ' + endpoint.type + ':' + endpoint.port + ' could not be created:', err.stack);
         }
     }
 };
