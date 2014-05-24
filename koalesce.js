@@ -15,7 +15,8 @@ var router = require('koa-router');
 
 var __fs = require('fs');
 var fs = {
-    readdir: Q.nfbind(__fs.readdir)
+    readdir: Q.nfbind(__fs.readdir),
+    stat: Q.nfbind(__fs.stat)
 };
 
 var responseContentTypes = require('./responseContentTypes');
@@ -262,27 +263,31 @@ Koalesce.prototype._loadControllers = function* () {
         let files = yield fs.readdir(path);
         for ( let fileIndex in files ) {
             let file = files[fileIndex];
+            let fileStat = yield fs.stat(file);
 
-            this._logInfo('-- Loading controller \'' + file + '\'');
-            let controller;
+            if ( fileStat.isFile() ) {
+                this._logInfo('-- Loading controller \'' + file + '\'');
 
-            try {
-                controller = require(path + '/' + file);
-            } catch ( err ) {
-                this._logError('Koalesce: Controller \'' + file +'\' contains an error.', err);
-                continue;
-            }
+                let controller;
 
-            if ( !controller.routes ) {
-                this._logError('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
-                continue;
-            }
+                try {
+                    controller = require(path + '/' + file);
+                } catch ( err ) {
+                    this._logError('Koalesce: Controller \'' + file +'\' contains an error.', err);
+                    continue;
+                }
 
-            let dependencies = this._loadDependencies(controller.dependencies || [], 'controller \'' + file + '\'');
+                if ( !controller.routes ) {
+                    this._logError('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
+                    continue;
+                }
 
-            for ( let routeName in controller.routes ) {
-                let route = controller.routes[routeName];
-                this._loadRoute(file, controller, dependencies, routeName, route);
+                let dependencies = this._loadDependencies(controller.dependencies || [], 'controller \'' + file + '\'');
+
+                for ( let routeName in controller.routes ) {
+                    let route = controller.routes[routeName];
+                    this._loadRoute(file, controller, dependencies, routeName, route);
+                }
             }
         }
     }
