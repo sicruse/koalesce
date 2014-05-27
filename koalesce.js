@@ -3,6 +3,7 @@
 var _ = require('underscore');
 var _s = require('underscore.string');
 var Q = require('q');
+var HttpServer = require('./httpServer');
 
 var co_body = require('madams5-co-body');
 var co_busboy = require('co-busboy');
@@ -29,6 +30,8 @@ function* Koalesce (config, logInfo, logWarning, logError) {
     this._logInfoFunc = logInfo;
     this._logWarningFunc = logWarning;
     this._logErrorFunc = logError;
+
+    this.controllers = [];
 
     validation.validateConfiguration(config);
 
@@ -117,7 +120,7 @@ Koalesce.prototype.start = function* () {
     this._loadBodyParser();
     this._createRouter();
     yield* this._loadControllers();
-    this._createEndpoints();
+    yield* this._createEndpoints();
 };
 
 Koalesce.prototype._loadStores = function* () {
@@ -263,10 +266,10 @@ Koalesce.prototype._loadControllers = function* () {
         let files = yield fs.readdir(path);
         for ( let fileIndex in files ) {
             let file = files[fileIndex];
-            let fileStat = yield fs.stat(file);
+            let fileStat = yield fs.stat(path + '/' + file);
 
             if ( fileStat.isFile() ) {
-                this._logInfo('-- Loading controller \'' + file + '\'');
+                this._logInfo('-- Loading controller \'' + path + '/' + file + '\'');
 
                 let controller;
 
@@ -361,7 +364,7 @@ Koalesce.prototype._loadRoute = function (file, controller, dependencies, routeN
     this.app[route.action.toLowerCase()](route.url, compose(callStack));
 };
 
-Koalesce.prototype._createEndpoints = function () {
+Koalesce.prototype._createEndpoints = function* () {
     this._logInfo('Creating endpoints');
 
     for ( let endpointIndex in this.config.endpoints ) {
@@ -376,13 +379,14 @@ Koalesce.prototype._createEndpoints = function () {
 
         try {
             switch ( endpoint.type ) {
-                case 'http': 
-                    require('http').createServer(this.app.callback()).listen(endpoint.port);
+                case 'http': {
+                    let server = new HttpServer(this.app.callback(), endpoint.port);
+                    yield server.start();
+                }
                 break;
                 case 'https': {
-                    let privateKey = __fs.readFileSync(endpoint.privateKeyFile);
-                    let certificate = __fs.readFileSync(endpoint.certificateFile);
-                    require('https').createServer({ key: privateKey, cert: certificate }, this.app.callback()).listen(endpoint.port);
+                    let server = new HttpServer(this.app.callback(), endpoint.port, endpoint);
+                    yield server.start();
                 }
                 break;
                 default:
