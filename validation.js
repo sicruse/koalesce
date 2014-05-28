@@ -1,3 +1,5 @@
+'use strict';
+
 var _ = require('underscore');
 var Q = require('q');
 
@@ -6,10 +8,10 @@ var fs = require('fs');
 var responseContentTypes = require('./responseContentTypes');
 
 function validateMiddleware (middleware) {
-    var errors = [];
+    let errors = [];
 
-    for ( var i = 0 ; i < middleware.length ; i++ ) {
-        var middlewareDescriptor = config.middleware.routeAgnostic[i];
+    for ( let i = 0 ; i < middleware.length ; i++ ) {
+        let middlewareDescriptor = config.middleware.routeAgnostic[i];
 
         if ( !middlewareDescriptor.hasOwnProperty('name') ) {
             errors.push("Configuration setting 'middleware' contains a hash missing the 'name' field.");
@@ -50,13 +52,13 @@ module.exports = {
             endpoints: [ { port: 4000, type: 'http' } ]
         });
 
-        var errors = [];
+        let errors = [];
 
         if ( typeof config.basePath !== 'string' ) {
             errors.push("Configuration setting 'basePath' must be a string.");
         }
 
-        var basePathStats = fs.statSync(config.basePath); // Sync is okay, we're just initializing
+        let basePathStats = fs.statSync(config.basePath); // Sync is okay, we're just initializing
         if ( !basePathStats.isDirectory() ) {
             errors.push("Configuration setting 'basePath' must be a valid directory.");
         }
@@ -65,9 +67,9 @@ module.exports = {
             errors.push("Configuration setting 'controllerPaths' must be an array.");
         }
 
-        for ( var i = 0 ; i < config.controllerPaths.length ; i++ ) {
-            var controllerPath = config.controllerPaths[i];
-            var controllerPathStats = fs.statSync(controllerPath);
+        for ( let i = 0 ; i < config.controllerPaths.length ; i++ ) {
+            let controllerPath = config.controllerPaths[i];
+            let controllerPathStats = fs.statSync(controllerPath);
             if ( !controllerPathStats.isDirectory() ) {
                 errors.push("Configuration setting 'controllerPaths' contains path '" + controllerPath + "' that does not exist.");
             }
@@ -77,10 +79,10 @@ module.exports = {
             errors.push("Configuration setting 'bodyLimits' must be a hash.");
         }
 
-        var bodyLimitsKeys = ['json', 'form', 'text', 'file'];
+        let bodyLimitsKeys = ['json', 'form', 'text', 'file'];
 
-        for ( var i = 0 ; i < bodyLimitsKeys.length ; i++ ) {
-            var bodyLimitsKey = bodyLimitsKeys[i];
+        for ( let i = 0 ; i < bodyLimitsKeys.length ; i++ ) {
+            let bodyLimitsKey = bodyLimitsKeys[i];
             if ( !config.bodyLimits.hasOwnProperty(bodyLimitsKey) ) {
                 errors.push("Configuration setting 'bodyLimits' is missing key '" + bodyLimitsKey + "'.");
             }
@@ -89,8 +91,8 @@ module.exports = {
         if ( typeof config.stores !== 'object' ) {
             errors.push("Configuration setting 'stores' must be a hash.");
         } else {
-            for ( var storeName in config.stores ) {
-                var store = config.stores[storeName];
+            for ( let storeName in config.stores ) {
+                let store = config.stores[storeName];
                 if ( !store.file ) {
                     errors.push("Configuration setting 'stores' must contain a string field 'file'.");
                 }
@@ -117,9 +119,9 @@ module.exports = {
             errors.push("Configuration setting 'endpoints' must be an array.");
         }
 
-        for ( var i = 0 ; i < config.endpoints.length ; i++ )
+        for ( let i = 0 ; i < config.endpoints.length ; i++ )
         {
-            var endpoint = config.endpoints[i];
+            let endpoint = config.endpoints[i];
 
             if ( !typeof endpoint === 'object' ) {
                 errors.push("Configuration setting 'endpoints' must contain only object types.");
@@ -138,8 +140,29 @@ module.exports = {
         }
     },
 
+    validateController: function(file, controller) {
+        let errors = [];
+
+        if ( !controller.routes ) {
+            errors.push('Koalesce: Controller \'' + file + '\' is missing field \'routes\'.');
+            return errors;
+        }
+
+        if ( typeof controller.routes !== 'object' ) {
+            errors.push('Koalesce: Controller \'' + file + '\' \'routes\' field must be an object.');
+            return errors;
+        }
+
+        for ( let routeName in controller.routes ) {
+            let route = controller.routes[routeName];
+            errors = errors.concat(this.validateRoute(file, routeName, route));
+        }
+
+        return errors;
+    }, 
+
     validateRoute: function (file, routeName, route) {
-        var errors = [];
+        let errors = [];
 
         _.defaults(route, {
             action: 'GET',
@@ -158,8 +181,6 @@ module.exports = {
             errors.push('Koalesce: Controller \'' + file + '\' has an unknown response type of \'' + route.responseContentType + '\' for the \'' + route.url + '\' path in \'' + routeName + '\'.');
         }
 
-        if ( errors.length > 0 ) {
-            throw errors;
-        }
+        return errors;
     }
 };
