@@ -136,7 +136,7 @@ Koalesce.prototype._printRoutes = function* () {
     let Table = require('cli-table');
     let table = new Table({
         head: ['Controller', 'Action', 'Request', 'Response', 'URL'],
-        colWidths: [15, 10, 10, 10, 35],
+        colWidths: [20, 10, 10, 10, 65],
         //colWidths: [16, 8, 6, 6, 44],
         chars: { 'mid': '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' }
     });
@@ -144,6 +144,7 @@ Koalesce.prototype._printRoutes = function* () {
     let config = this.config;
 
     for ( let controllerPath in this.controllers ) {
+        let file = this.controllers[controllerPath].file;
         let controller = this.controllers[controllerPath].instance;
 
         for ( let routeName in controller.routes ) {
@@ -268,8 +269,12 @@ Koalesce.prototype._initializeMiddleware = function () {
     let app = this.app;
     
     this._routeAgnosticMiddleware = this._initializeMiddlewareSet(this.config.middleware.routeAgnostic); 
+ 
     _.each(this._routeAgnosticMiddleware, function (middleware) { 
-        app.use(middleware); 
+        var re = new RegExp("regex","g");
+        if ( !middleware.environment || (middleware.environment && middleware.environment.match(process.env.NODE_ENV) ) {
+            app.use(middleware); 
+        }
     });
     this._routeAwareMiddleware = this._initializeMiddlewareSet(this.config.middleware.routeAware);
 };
