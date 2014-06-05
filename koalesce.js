@@ -5,7 +5,7 @@ var _s = require('underscore.string');
 var Q = require('q');
 var HttpServer = require('./httpServer');
 
-var co_body = require('madams5-co-body');
+var co_body = require('co-body');
 var co_busboy = require('co-busboy');
 var compose = require('koa-compose');
 
@@ -135,8 +135,8 @@ Koalesce.prototype._loadControllers = function* () {
 Koalesce.prototype._printRoutes = function* () {
     let Table = require('cli-table');
     let table = new Table({
-        head: ['Controller', 'Action', 'Request', 'Response', 'URL'],
-        colWidths: [20, 10, 10, 10, 65],
+        head: ['Controller', 'Method', 'Request', 'Response', 'URL'],
+        colWidths: [20, 10, 10, 10, 62],
         //colWidths: [16, 8, 6, 6, 44],
         chars: { 'mid': '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' }
     });
@@ -149,7 +149,7 @@ Koalesce.prototype._printRoutes = function* () {
 
         for ( let routeName in controller.routes ) {
             let route = controller.routes[routeName];
-            table.push([file, route.action, route.requestContentType || '-', route.responseContentType, route.url]);
+            table.push([file, route.method, route.requestContentType || '-', route.responseContentType, route.url]);
         }
     }
 
@@ -195,7 +195,7 @@ Koalesce.prototype._initializeControllers = function* () {
 };
 
 Koalesce.prototype._initializeRoute = function (file, controller, dependencies, routeName, route) {
-    this._logInfo('-- Initializing route', route.action, '(' + route.responseContentType + ')', route.url);
+    this._logInfo('-- Initializing route', route.method, '(' + route.responseContentType + ')', route.url);
 
     let controllers = this.controllers;
 
@@ -241,7 +241,7 @@ Koalesce.prototype._initializeRoute = function (file, controller, dependencies, 
     });
     callStack.push(route.handler);
 
-    this.app[route.action.toLowerCase()](route.url, compose(callStack));
+    this.app[route.method.toLowerCase()](route.url, compose(callStack));
 };
 
 Koalesce.prototype._buildDependencies = function (list, forWhat) {
@@ -272,7 +272,7 @@ Koalesce.prototype._initializeMiddleware = function () {
  
     _.each(this._routeAgnosticMiddleware, function (middleware) { 
         var re = new RegExp("regex","g");
-        if ( !middleware.environment || (middleware.environment && middleware.environment.match(process.env.NODE_ENV) ) {
+        if ( !middleware.environment || (middleware.environment && middleware.environment.match(process.env.NODE_ENV)) ) {
             app.use(middleware); 
         }
     });
@@ -348,16 +348,6 @@ Koalesce.prototype._initializeBodyParser = function () {
                     this.status = 400;
                     this.body = 'Expected form data in request.';
                     self._logWarning('Koalesce: Expected form data in request.');
-                    return;
-                }
-            } else if ( _s.startsWith(contentType, 'text/plain') ) {
-                opts.limit = limits.text;
-                try {
-                    this.request.body = yield co_body.text(this, opts);
-                } catch ( err ) {
-                    this.status = 400;
-                    this.body = 'Expected plain-text in request.';
-                    self._logWarning('Koalesce: Expected plain-text in request.');
                     return;
                 }
             } else if ( _s.startsWith(contentType, 'form/multipart') ) {

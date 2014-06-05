@@ -1,6 +1,6 @@
 {
   "name": "koalesce",
-  "version": "0.0.20",
+  "version": "0.0.22",
   "description": "simple route and middleware manager for koa",
   "main": "koalesce.js",
   "repository": {
@@ -16,20 +16,20 @@
   "author": {
     "name": "madams5"
   },
-  "license": "BSD",
+  "license": "MIT",
   "readme": "route and middleware manager for koa",
   "readmeFilename": "README.md",
   "homepage": "",
-  "_id": "koalesce@0.0.20",
+  "_id": "koalesce@0.0.22",
   "dependencies": {
+    "cli-table": "^0.3.0",
+    "co-body": "0.0.1",
     "co-busboy": "^1.0.0",
-    "koa": "^0.6.1",
+    "koa": "^0.6.2",
     "koa-compose": "^2.3.0",
     "koa-router": "^3.1.4",
-    "madams5-co-body": "0.0.2",
     "q": "^1.0.0",
     "underscore": "^1.6.0",
-    "underscore.string": "^2.3.3",
-    "cli-table": "^0.3.0"
+    "underscore.string": "^2.3.3"
   }
 }
