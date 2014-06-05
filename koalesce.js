@@ -153,6 +153,8 @@ Koalesce.prototype._printRoutes = function* () {
         }
     }
 
+    console.log(table);
+
     console.log(table.toString());
 };
 
