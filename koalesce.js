@@ -172,7 +172,7 @@ Koalesce.prototype._initializeStores = function* () {
         let store = this.stores[storeName];
         this._logInfo('-- Initializing store:', storeName);
         if ( store.instance.initialize ) {
-            yield* store.instance.initialize(store.config);
+            yield store.instance.initialize(store.config);
         }
     }
 };
