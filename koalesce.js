@@ -127,10 +127,59 @@ Koalesce.prototype._loadControllers = function* () {
                 let errors = validation.validateController(filePath, controller.instance);
 
                 this.controllers[name] = controller;
+
+                let middleware = [];
+                middleware = middleware.concat(this.config.middleware.routeAgnostic);
+                middleware = middleware.concat(this.config.middleware.routeAware);
+
+                if ( controller.middleware ) {
+                    middleware = middleware.concat(controller.middleware);
+                }
+
+                controller._resolvedMiddleware = middleware;
+
+                if ( controller.instance.routes ) {
+                    for ( let routeName in controller.instance.routes ) {
+                        let route = controller.instance.routes[routeName];
+                        let routeMiddleware = middleware.slice();
+
+                        if ( route.middleware ) {
+                            routeMiddleware = routeMiddleware.concat(route.middleware);
+                            // chop off object from route middleware
+                        }
+
+                        route._composedMetadata = this._routeComposeMetadata(routeMiddleware, route);
+                        route.getMetadata = function* () {
+                            let context = {};
+                            context.route = route;
+                            yield* route._composedMetadata.call(context);
+                            delete context.route;
+                            return context;
+                        };
+
+                        route._resolvedMiddleware = routeMiddleware;
+                    }
+                }
             }
         }
     }
 };
+
+Koalesce.prototype._routeComposeMetadata = function (middleware, route) {
+    let metadataFuncs = [];
+
+    for ( let i = 0 ; i < middleware.length ; i++ ) {
+        if ( middleware[i].metadata ) {
+            metadataFuncs.push(middleware[i].metadata);
+        }
+    }
+
+    if ( route.metadata ) {
+        metadataFuncs.push(route.metadata);
+    }
+
+    return compose(metadataFuncs);
+}
 
 Koalesce.prototype._printRoutes = function* () {
     let Table = require('cli-table');
@@ -153,8 +202,6 @@ Koalesce.prototype._printRoutes = function* () {
         }
     }
 
-    console.log(table);
-
     console.log(table.toString());
 };
 
@@ -174,7 +221,7 @@ Koalesce.prototype._initializeStores = function* () {
         let store = this.stores[storeName];
         this._logInfo('-- Initializing store:', storeName);
         if ( store.instance.initialize ) {
-            yield store.instance.initialize(store.config);
+            yield* store.instance.initialize(store.config);
         }
     }
 };
@@ -271,12 +318,8 @@ Koalesce.prototype._initializeMiddleware = function () {
     let app = this.app;
     
     this._routeAgnosticMiddleware = this._initializeMiddlewareSet(this.config.middleware.routeAgnostic); 
- 
     _.each(this._routeAgnosticMiddleware, function (middleware) { 
-        var re = new RegExp("regex","g");
-        if ( !middleware.environment || (middleware.environment && middleware.environment.match(process.env.NODE_ENV)) ) {
-            app.use(middleware); 
-        }
+        app.use(middleware); 
     });
     this._routeAwareMiddleware = this._initializeMiddlewareSet(this.config.middleware.routeAware);
 };
@@ -289,6 +332,11 @@ Koalesce.prototype._initializeMiddlewareSet = function (middleware) {
 
         if ( !object.name ) {
             this._logWarning('Koalesce(config): Middleware entry #' + middlewareIndex + ' is missing field \'name\'.');
+            continue;
+        }
+
+        if ( object.environment && !object.environment.match(process.env.NODE_ENV) )  {
+            this._logInfo('-- Skipping middleware:', object.name);
             continue;
         }
 
