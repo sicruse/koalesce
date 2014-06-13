@@ -5,8 +5,6 @@ var Q = require('q');
 
 var fs = require('fs');
 
-var responseContentTypes = require('./responseContentTypes');
-
 function validateMiddleware (middleware) {
     let errors = [];
 
@@ -38,12 +36,6 @@ module.exports = {
         _.defaults(config, { 
             basePath: __dirname,
             controllerPaths: ['controllers'],
-            bodyLimits: {
-                json: '1mb',
-                form: '1mb',
-                text: '1mb',
-                file: '5mb'
-            },
             stores: {},
             middleware: {
                 routeAgnostic: [],
@@ -72,19 +64,6 @@ module.exports = {
             let controllerPathStats = fs.statSync(controllerPath);
             if ( !controllerPathStats.isDirectory() ) {
                 errors.push("Configuration setting 'controllerPaths' contains path '" + controllerPath + "' that does not exist.");
-            }
-        }
-
-        if ( typeof config.bodyLimits !== 'object' ) {
-            errors.push("Configuration setting 'bodyLimits' must be a hash.");
-        }
-
-        let bodyLimitsKeys = ['json', 'form', 'text', 'file'];
-
-        for ( let i = 0 ; i < bodyLimitsKeys.length ; i++ ) {
-            let bodyLimitsKey = bodyLimitsKeys[i];
-            if ( !config.bodyLimits.hasOwnProperty(bodyLimitsKey) ) {
-                errors.push("Configuration setting 'bodyLimits' is missing key '" + bodyLimitsKey + "'.");
             }
         }
 
@@ -166,7 +145,6 @@ module.exports = {
 
         _.defaults(route, {
             action: 'GET',
-            responseContentType: 'html'
         });
 
         if ( !route.url ) {
@@ -175,10 +153,6 @@ module.exports = {
 
         if ( !route.handler ) {
             errors.push('Koalesce: Controller \'' + file + '\' is missing a handler for \'' + routeName + '\'.');
-        }
-
-        if ( !responseContentTypes[route.responseContentType] ) {
-            errors.push('Koalesce: Controller \'' + file + '\' has an unknown response type of \'' + route.responseContentType + '\' for the \'' + route.url + '\' path in \'' + routeName + '\'.');
         }
 
         return errors;

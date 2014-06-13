@@ -5,8 +5,6 @@ var _s = require('underscore.string');
 var Q = require('q');
 var HttpServer = require('./httpServer');
 
-var co_body = require('co-body');
-var co_busboy = require('co-busboy');
 var compose = require('koa-compose');
 
 var validation = require('./validation');
@@ -19,8 +17,6 @@ var fs = {
     readdir: Q.nfbind(__fs.readdir),
     stat: Q.nfbind(__fs.stat)
 };
-
-var responseContentTypes = require('./responseContentTypes');
 
 module.exports = Koalesce;
 
@@ -206,7 +202,6 @@ Koalesce.prototype._printRoutes = function* () {
 };
 
 Koalesce.prototype.start = function* () {
-    this._initializeBodyParser();
     this._initializeMiddleware();
     this._initializeRouter();
     yield* this._initializeStores();
@@ -244,16 +239,14 @@ Koalesce.prototype._initializeControllers = function* () {
 };
 
 Koalesce.prototype._initializeRoute = function (file, controller, dependencies, routeName, route) {
-    this._logInfo('-- Initializing route', route.method, '(' + route.responseContentType + ')', route.url);
+    this._logInfo('-- Initializing route', route.method, route.url);
 
     let controllers = this.controllers;
 
     let callStack = [function* (next) {
         this.controllers = controllers;
         this.route = route;
-        responseContentTypes[route.responseContentType].bindType(this);
         yield* next;
-        responseContentTypes[route.responseContentType].validate(this);
     }];
 
     callStack = callStack.concat(this._routeAwareMiddleware);
@@ -289,6 +282,8 @@ Koalesce.prototype._initializeRoute = function (file, controller, dependencies, 
         yield* next;
     });
     callStack.push(route.handler);
+
+    // verify the call stack
 
     this.app[route.method.toLowerCase()](route.url, compose(callStack));
 };
@@ -362,64 +357,6 @@ Koalesce.prototype._initializeMiddlewareSet = function (middleware) {
     }
 
     return result;
-};
-
-Koalesce.prototype._initializeBodyParser = function () {
-    this._logInfo('Initializing body parser');
-
-    let limits = this.config.bodyLimits;
-
-    let self = this;
-
-    this.app.use(function* (next) {
-        let contentType = this.request.header['content-type'];
-
-        let opts = {
-            encoding: this.request.header['content-encoding'] || 'utf8',
-            length: this.request.header['content-length']
-        }
-
-        if ( contentType ) { 
-            if ( _s.startsWith(contentType, 'application/json') ) {
-                opts.limit = limits.json;
-                try {
-                    this.request.body = yield co_body.json(this, opts);
-                } catch ( err ) {
-                    this.status = 400;
-                    this.body = 'Expected json body in request.';
-                    self._logWarning('Koalesce: Expected json body in request.');
-                    return;
-                }
-            } else if ( _s.startsWith(contentType, 'application/x-www-form-urlencoded') ) {
-                opts.limit = limits.form;
-                try {
-                    this.request.body = yield co_body.form(this, opts);                    
-                } catch ( err ) {
-                    this.status = 400;
-                    this.body = 'Expected form data in request.';
-                    self._logWarning('Koalesce: Expected form data in request.');
-                    return;
-                }
-            } else if ( _s.startsWith(contentType, 'form/multipart') ) {
-                let parts = co_busboy(this);
-                this.request.body = {};
-                this.request.body.fields = parts.fields;
-                this.request.body.files = [];
-
-                let part;
-                while ( part = yield parts ) {
-                    this.request.body.files.push(part);
-                }
-            } else {
-                self._logWarning('Koalesce: Invalid content type \'' + contentType + '\'.');
-                this.status = 415;
-                this.body = 'Unsupported or missing content-type';
-                return;
-            }
-        }
-
-        yield* next;
-    });
 };
 
 Koalesce.prototype._initializeRouter = function () {
