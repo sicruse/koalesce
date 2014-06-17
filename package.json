@@ -23,7 +23,7 @@
   "_id": "koalesce@0.0.30",
   "dependencies": {
     "cli-table": "^0.3.0",
-    "koa": "^0.7.0",
+    "koa": "^0.8.0",
     "koa-compose": "^2.3.0",
     "koa-router": "^3.1.4",
     "q": "^1.0.0",
