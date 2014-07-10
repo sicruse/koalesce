@@ -1,8 +1,8 @@
 {
   "name": "koalesce",
-  "version": "0.0.31",
+  "version": "0.0.32",
   "description": "simple route and middleware manager for koa",
-  "main": "koalesce.js",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/madams5/koalesce.git"
@@ -19,8 +19,7 @@
   "license": "MIT",
   "readme": "route and middleware manager for koa",
   "readmeFilename": "README.md",
-  "homepage": "",
-  "_id": "koalesce@0.0.31",
+  "homepage": "http://www.koalescejs.com",
   "dependencies": {
     "cli-table": "^0.3.0",
     "koa": "^0.8.1",
@@ -29,5 +28,10 @@
     "q": "^1.0.0",
     "underscore": "^1.6.0",
     "underscore.string": "^2.3.3"
+  },
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-contrib-jshint": "^0.10.0",
+    "grunt-shell": "^0.7.0"
   }
 }
