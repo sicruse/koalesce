@@ -21,12 +21,12 @@
   "readmeFilename": "README.md",
   "homepage": "http://www.koalescejs.com",
   "dependencies": {
-    "cli-table": "^0.3.0",
-    "joi": "^4.7.0",
-    "koa": "^0.12.1",
+    "cli-table": "^0.3.1",
+    "joi": "^4.8.1",
+    "koa": "^0.13.0",
     "koa-compose": "^2.3.0",
-    "koa-router": "^3.3.1",
-    "q": "^1.0.0",
+    "koa-router": "^3.6.0",
+    "q": "^1.1.1",
     "underscore": "^1.7.0"
   },
   "devDependencies": {
