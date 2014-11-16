@@ -1,6 +1,6 @@
 {
   "name": "koalesce",
-  "version": "0.1.14",
+  "version": "0.1.16",
   "description": "simple route and middleware manager for koa",
   "main": "index.js",
   "repository": {
@@ -22,12 +22,12 @@
   "homepage": "http://www.koalescejs.com",
   "dependencies": {
     "cli-table": "^0.3.1",
-    "joi": "^4.8.1",
+    "joi": "^4.7.0",
     "koa": "^0.13.0",
     "koa-compose": "^2.3.0",
-    "koa-router": "^3.6.0",
-    "q": "^1.1.1",
-    "underscore": "^1.7.0"
+    "koa-router": "^3.7.0",
+    "lodash": "^2.4.1",
+    "q": "^1.1.1"
   },
   "devDependencies": {
     "grunt": "^0.4.5",
