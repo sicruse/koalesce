@@ -43,15 +43,15 @@ module.exports = function (grunt) {
             },
         },
         shell: {
-            test: {
-                command: "NODE_ENV=test mocha --harmony tests/**/*.test.js",
+            mocha: {
+                command: "NODE_ENV=test node --harmony node_modules/mocha-co/bin/mocha --harmony test/**/*.test.js",
                 options: {
                     stdout: true,
                     stderr: true
                 }
             },
             coverage: {
-                command: "NODE_ENV=test node --harmony node_modules/istanbul/lib/cli.js cover --dir coverage/server _mocha -- -R dot --timeout 30000 tests/**/*.test.js",
+                command: "NODE_ENV=test node --harmony node_modules/istanbul/lib/cli.js cover --dir coverage/server _mocha -- -R dot --timeout 30000 test/**/*.test.js",
                 options: {
                     stdout: true,
                     stderr: true
@@ -70,6 +70,6 @@ module.exports = function (grunt) {
         grunt.config('jshint.options.reporterOutput', 'jshint.xml');
         grunt.task.run('jshint');
     });
-    grunt.registerTask('test', ['shell:test']);
+    grunt.registerTask('mocha', ['shell:mocha']);
     grunt.registerTask('coverage', ['shell:coverage']);
 };
